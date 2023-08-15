@@ -9,12 +9,22 @@ import glob
 import string
 from langdetect import detect, lang_detect_exception
 import re
-
+import nltk
+from nltk.corpus import stopwords
+from textblob import Word, TextBlob
 
 # Step-1: Read the files in the dataframe and apply the filter analysis window data
 def filter_dataframe_by_date(data, start_date, end_date, column_name):
     data[column_name] = pd.to_datetime(data[column_name])
+    data['PublishDate'] = data[column_name].dt.strftime('%d-%m-%Y')
+    # data['PublishWeek'] = data[column_name].dt.strftime('week%U')
+    data['PublishWeek'] = data[column_name].dt.strftime('%U')
+    data['PublishMonth'] = data[column_name].dt.strftime('%m')
+    data['PublishYear'] = data[column_name].dt.strftime('%Y')
+    data['PublishMonthYear'] = data[column_name].dt.strftime('%b%Y')
+    data['PublishHour'] = data[column_name].dt.strftime('%H')
     filtered_data = data[data[column_name].between(start_date, end_date)]
+
     return filtered_data
 
 
@@ -201,7 +211,17 @@ def remove_unknown_language(df):
 
     return df_cleaned
 
-
+def preprocess_stopwords(commentsyt):
+    nltk.download('stopwords')
+    nltk.download('wordnet')
+    stop_words = stopwords.words('english')
+    custom_stopwords = ['Fraud']
+    processed_comments = commentsyt
+    processed_comments.replace('[^\w\s]', '')
+    processed_comments = " ".join(word for word in processed_comments.split() if word not in stop_words)
+    processed_comments = " ".join(word for word in processed_comments.split() if word not in custom_stopwords)
+    processed_comments = " ".join(Word(word).lemmatize() for word in processed_comments.split())
+    return(processed_comments)
 
 
 # step-3: detect the language and transliterate
@@ -337,46 +357,12 @@ if __name__ == '__main__':
     count_row = data.shape[0]  # Gives number of rows
     count_col = data.shape[1]  # Gives number of columns
     print(count_row, count_col)
-    data = detect_language(data,text_column='comment_textDisplay')
+    data = detect_language(data, text_column='comment_textDisplay')
     data = remove_unknown_language(data)
+    data['comment_textDisplay'] = data['comment_textDisplay'].apply(lambda x: preprocess_stopwords(x))
     count_row = data.shape[0]  # Gives number of rows
     count_col = data.shape[1]  # Gives number of columns
     print(count_row, count_col)
-    # print(data[['comment_textDisplay']].tail(25))
-    data1=data[['comment_textDisplay','bjp','ing', 'language', 'language_code']]
-    data1.to_csv("D:\\0_SHU_31018584\\Data\\translated.csv", index=False)
-
-
-
-
-
-    # data2 = translate_comments_to_english(data2)
-    # # data2 = translate_and_add_column(data2, 'comment_textDisplay', 'language_code')
-    # print(data2[['comment_textDisplay', 'Translated_Text']].head(10))
-    # data2.to_csv("D:\\0_SHU_31018584\\Data\\translated.csv", index=False)
-
-
-
-
-
-
-
-
-
-
-
-
-    # data2 = translate_comments_to_english(data2)
-    # data2 = translate_by_language(data2)
-    # data2['converted_column'] = data2.loc[data2['language_code'] == 'hi', 'comment_textDisplay'].apply(translate_to_english)
-    # # Fill the 'converted_column' with original 'text' for non-Hindi rows
-    # data2['converted_column'] = data2['converted_column'].fillna(data2['comment_textDisplay'])
-    #
-    # data3=data2[['comment_textDisplay', 'language_code', 'converted_column']]
-    # print(data3[data3['language_code'] == 'hi'])
-
-    # data3 = transliterate_to_english(data3, 'comment_textDisplay', 'language_code')
-    # print(data2[['comment_textDisplay', 'language_code', 'converted_column']].tail(10))
-    # print(data2[['comment_textDisplay','comment_textOriginal','language']].head(10))
-
-
+    print(data[['comment_textDisplay']].tail(5))
+    # data1=data[['comment_textDisplay','bjp','ing', 'language', 'language_code']]
+    data.to_csv("D:\\0_SHU_31018584\\Data\\translated.csv", index=False)
