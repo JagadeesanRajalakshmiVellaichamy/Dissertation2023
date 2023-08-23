@@ -26,7 +26,7 @@ st.set_page_config(layout="wide")
 st.title('Indian General Election 2019 Youtube Sentiment Dashboard')
 
 #Step3: Read the file from
-df = pd.read_csv("D:\\0_SHU_31018584\\Data\\Youtube_Clean_dataframe.csv", sep=',')
+df = pd.read_csv("C:\\Dissertation_2023\\Youtube_Clean_dataframe.csv", sep=',')
 
 #Step4: Plotting the graphs for the dashboard (Analysis period from Jan to Apr 2019 is considered)
 #Plot1: Trend analysis on monthly youtube comments
@@ -252,6 +252,8 @@ tbresult_df2['party'] = 'Congress'
 tbtotal_count2 = tbresult_df2['count'].sum()
 tbresult_df2['Percentage'] = (tbresult_df2['count'] / tbtotal_count2) * 100
 TB_bar = pd.concat([tbresult_df1, tbresult_df2], ignore_index=True)
+TB_bar = TB_bar.sort_values(by='mBert_sentiment')
+
 st.markdown("Section-4: Sentiments based on youtube comments using mBert")
 
 fig_TB = px.bar(TB_bar, x='mBert_sentiment', y='count', color='party', barmode='group', color_discrete_sequence=['orange', 'blue'])
@@ -277,8 +279,8 @@ showlegend=True,
 legend=dict(bgcolor='white')
 )
 
-fig_pietb1 = px.pie(tbresult_df1, values='Percentage', names='mBert_sentiment', title='Sentiment Distribution of BJP', labels={'Percentage': '%'}, color_discrete_sequence=['gainsboro','red','forestgreen'])
-fig_pietb2 = px.pie(tbresult_df2, values='Percentage', names='mBert_sentiment', title='Sentiment Distribution of CONGRESS', labels={'Percentage': '%'}, color_discrete_sequence=['gainsboro','red','forestgreen'])
+fig_pietb1 = px.pie(tbresult_df1, values='Percentage', names='mBert_sentiment', title='Sentiment Distribution of BJP', labels={'Percentage': '%'}, color_discrete_sequence=['red','forestgreen','gainsboro'])
+fig_pietb2 = px.pie(tbresult_df2, values='Percentage', names='mBert_sentiment', title='Sentiment Distribution of CONGRESS', labels={'Percentage': '%'}, color_discrete_sequence=['red','forestgreen','gainsboro'])
 
 fig_pietb1.update_traces(textinfo='percent+label')
 fig_pietb2.update_traces(textinfo='percent+label')
@@ -315,26 +317,33 @@ selected_timeperiod = st.multiselect("Select Analysis Timeperiod:", df['PublishM
 filtered_df6 = df[df['PublishMonthYear'].isin(selected_timeperiod)]
 selected_language = st.multiselect("Select languages:", df['language'].unique())
 filtered_df6 = filtered_df6[filtered_df6['language'].isin(selected_language)]
-chartdata6 = filtered_df6.groupby(['bjp','ing','language', 'PublishMonth', 'mBert_sentiment']).size().reset_index(name='frequency')
-chartdata6 = chartdata6[chartdata6['mBert_sentiment'] != 'Neutral']
 
-tb_df11 = chartdata6[chartdata6['bjp'] == 1]
-tbresult_df11 = tb_df11['mBert_sentiment'].value_counts().reset_index()
-tbresult_df11.columns = ['mBert_sentiment', 'count']
-tbresult_df11['PARTY'] = 'BJP'
-tbtotal_count11 = tbresult_df11['count'].sum()
-tbresult_df11['Percentage'] = (tbresult_df11['count'] / tbtotal_count11) * 100
+BJP6 = filtered_df6[filtered_df6['bjp'] == 1]
+BJP6['PARTY'] = 'BJP'
+BJP6 = BJP6.groupby(['PARTY','language', 'PublishMonth', 'mBert_sentiment']).size().reset_index(name='frequency')
+BJP6 = BJP6[BJP6['mBert_sentiment'] != 'Neutral']
+
+BJP6_neededcolumn = BJP6[['PARTY', 'mBert_sentiment', 'frequency']]
+BJP6_pie = BJP6_neededcolumn.groupby(['PARTY', 'mBert_sentiment']).sum().reset_index()
+BJP6_pie['sum'] = BJP6_pie.groupby(['PARTY'])['frequency'].transform('sum')
+BJP6_pie['Percentage'] = (BJP6_pie['frequency'] / BJP6_pie['sum']) * 100
 
 # Congress
-tb_df21 = chartdata6[chartdata6['ing'] == 1]
-tbresult_df21 = tb_df21['mBert_sentiment'].value_counts().reset_index()
-tbresult_df21.columns = ['mBert_sentiment', 'count']
-tbresult_df21['PARTY'] = 'CONGRESS'
-tbtotal_count21 = tbresult_df21['count'].sum()
-tbresult_df21['Percentage'] = (tbresult_df21['count'] / tbtotal_count21) * 100
-TB_bar1 = pd.concat([tbresult_df11, tbresult_df21], ignore_index=True)
+CONGRESS6 = filtered_df6[filtered_df6['ing'] == 1]
+CONGRESS6['PARTY'] = 'CONGRESS'
+CONGRESS6 = CONGRESS6.groupby(['PARTY','language', 'PublishMonth', 'mBert_sentiment']).size().reset_index(name='frequency')
+CONGRESS6 = CONGRESS6[CONGRESS6['mBert_sentiment'] != 'Neutral']
 
-fig_TB6 = px.bar(TB_bar1, x='mBert_sentiment', y='count', color='PARTY', barmode='group', color_discrete_sequence=['orange','blue'])
+CONGRESS6_neededcolumn = CONGRESS6[['PARTY', 'mBert_sentiment', 'frequency']]
+CONGRESS6_pie = CONGRESS6_neededcolumn.groupby(['PARTY', 'mBert_sentiment']).sum().reset_index()
+CONGRESS6_pie['sum'] = CONGRESS6_pie.groupby(['PARTY'])['frequency'].transform('sum')
+CONGRESS6_pie['Percentage'] = (CONGRESS6_pie['frequency'] / CONGRESS6_pie['sum']) * 100
+
+ChartData6= pd.concat([BJP6_neededcolumn, CONGRESS6_neededcolumn], ignore_index=True)
+ChartData6 = ChartData6.groupby(['PARTY', 'mBert_sentiment']).sum().reset_index()
+ChartData6 = ChartData6.sort_values(by='mBert_sentiment')
+
+fig_TB6 = px.bar(ChartData6, x='mBert_sentiment', y='frequency', color='PARTY', barmode='group', color_discrete_sequence=['orange','blue'])
 fig_TB6.update_xaxes(type='category', categoryorder='category ascending', title='Sentiment Category')
 fig_TB6.update_yaxes(title='Number of comments')
 fig_TB6.update_layout(
@@ -355,8 +364,16 @@ showlegend=True,
 legend=dict(bgcolor='white')
 )
 
-fig_pietb11 = px.pie(tbresult_df11, values='Percentage', names='mBert_sentiment', title='Sentiment Distribution of BJP', labels={'Percentage': '%'}, color_discrete_sequence=['red','forestgreen'])
-fig_pietb21 = px.pie(tbresult_df21, values='Percentage', names='mBert_sentiment', title='Sentiment Distribution of CONGRESS', labels={'Percentage': '%'}, color_discrete_sequence=['red','forestgreen'])
+color_mapping = {
+    'Positive': 'forestgreen',
+    'Negative': 'red'
+}
+
+BJP6_pie['Color'] = BJP6_pie['mBert_sentiment'].map(color_mapping)
+CONGRESS6_pie['Color'] = CONGRESS6_pie['mBert_sentiment'].map(color_mapping)
+
+fig_pietb11 = px.pie(BJP6_pie, values='Percentage', names='mBert_sentiment', title='Sentiment Distribution of BJP', labels={'Percentage': '%'}, color='mBert_sentiment', color_discrete_map=color_mapping)
+fig_pietb21 = px.pie(CONGRESS6_pie, values='Percentage', names='mBert_sentiment', title='Sentiment Distribution of CONGRESS', labels={'Percentage': '%'}, color='mBert_sentiment', color_discrete_map=color_mapping)
 fig_pietb11.update_traces(textinfo='percent+label')
 fig_pietb21.update_traces(textinfo='percent+label')
 
@@ -388,7 +405,7 @@ with right_column3:
 ##############################################################################
 #CHART13: Displaying the Trained model metrics
 st.markdown("Section-6: mBert model evaluation metrics")
-NLPmetrics = pd.read_csv("D:\\0_SHU_31018584\\Data\\NLP_mBERT_Metrics.csv", sep=',')
+NLPmetrics = pd.read_csv("C:\\Dissertation_2023\\NLP_mBERT_Metrics.csv", sep=',')
 
 basemodeldf=NLPmetrics[NLPmetrics['ModelName'] == 'mBERT Base Model']
 basemodeldf=basemodeldf.drop('ModelName', axis=1)
