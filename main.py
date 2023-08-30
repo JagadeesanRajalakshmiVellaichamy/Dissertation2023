@@ -20,17 +20,18 @@ import pandas as pd
 import glob
 import string
 import re
+import datetime
 import numpy as np
 import nltk
 import torch
 from nltk.corpus import stopwords
-from textblob import Word
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.model_selection import train_test_split
 from transformers import BertTokenizer, BertForSequenceClassification, AdamW
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 from langdetect import detect, DetectorFactory
+from better_profanity import profanity
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -389,7 +390,7 @@ def English_comments_to_lower(sourcedata, columnname):
     return sourcedata
 ################################################################################################
 #Step16: Identify the stop words and remove
-def Stopwords_detection_removal(columnname):
+def Stopwords_Profanity_detection_removal(data):
     """
     Author: Jagadeesan Rajalakshmi Vellaichamy
     Reviewer: Dani Papamaximou
@@ -402,13 +403,73 @@ def Stopwords_detection_removal(columnname):
     nltk.download('stopwords')
     nltk.download('wordnet')
     stop_words = stopwords.words('english')
-    custom_stopwords = ['fraud', 'thevidiya', 'otha', 'pagal']
-    textprocessed = columnname
-    textprocessed.replace('[^\w\s]', '')
-    textprocessed = " ".join(word for word in textprocessed.split() if word not in stop_words)
-    textprocessed = " ".join(word for word in textprocessed.split() if word not in custom_stopwords)
-    textprocessed = " ".join(Word(word).lemmatize() for word in textprocessed.split())
-    return(textprocessed)
+    #Hindi, tamil, telugu, malayalam, kannada, marathi, bengali, gujarati, odia, punjabi, urdu
+    custom_profanitywords = ['आंड़', 'आंड', 'आँड', 'बहनचोद', 'बेहेनचोद', 'भेनचोद', 'बकचोद', 'बकचोदी', 'बेवड़ा', 'बेवड़े', 'बेवकूफ', 'भड़ुआ', 'भड़वा', 'भोसड़ा', 'भोसड़ीके', 'भोसड़ीकी', 'भोसड़ीवाला', 'भोसड़ीवाले', 'बब्बे', 'बूबे', 'बुर', 'चरसी', 'चूचे', 'चूची', 'चुची', 'चोद', 'चुदने', 'चुदवा', 'चुदवाने', 'चाट', 'चूत', 'चूतिया', 'चुटिया', 'चूतिये', 'दलाल', 'दलले', 'फट्टू', 'गधा', 'गधे', 'गधालंड', 'गांड', 'गांडू', 'गंडफट', 'गंडिया', 'गंडिये', 'गू', 'गोटे', 'हग', 'हग्गू', 'हगने', 'हरामी', 'हरामजादा', 'हरामज़ादा', 'हरामजादे', 'हरामज़ादे', 'हरामखोर', 'झाट', 'झाटू', 'कुत्ता', 'कुत्ते', 'कुतिया', 'कुत्ती', 'लेंडी', 'लोड़े', 'लौड़े', 'लौड़ा', 'लोड़ा', 'लौडा', 'लिंग', 'लोडा', 'लोडे', 'लंड', 'लौंडा', 'लौंडे', 'लौंडी', 'लौंडिया', 'लुल्ली', 'मार', 'मारो', 'मारूंगा', 'मादरचोद', 'मादरचूत', 'मादरचुत', 'मम्मे', 'मूत', 'मुत', 'मूतने', 'मुतने', 'मूठ', 'मुठ', 'नुननी', 'नुननु', 'पाजी', 'पेसाब', 'पेशाब', 'पिल्ला', 'पिल्ले', 'पिसाब',
+                        'haraamzyaada', 'haraamjaada', 'haraamjaade', 'haraamzaade', 'bhosdiwala', 'bhosdiwale', 'haramzyada', 'haraamkhor', 'madarchodd', 'madarchood', 'madarchoot', 'bahenchod', 'behenchod', 'bhenchodd', 'bhonsdike', 'chudwaane', 'gadhalund', 'haramjada', 'haramkhor', 'madarchod', 'madarchut', 'porkistan', 'bhenchod', 'bakchodd', 'bakchodi', 'bevakoof', 'bewakoof', 'bhosdike', 'bhosdiki', 'chudwane', 'laundiya', 'loundiya', 'bakchod', 'bevkoof', 'bewkoof', 'bhaduaa', 'bhadvaa', 'bhadwaa', 'bhosada', 'bhosdaa', 'chooche', 'choochi', 'chudney', 'chudwaa', 'chutiya', 'chutiye', 'gandfat', 'gandfut', 'gandiya', 'gandiye', 'kuttiya', 'laundey', 'marunga', 'peshaab', 'bevdey', 'bewday', 'bevkuf', 'bewkuf', 'bhadua', 'bhadva', 'bhadwa', 'bhosda', 'babbey', 'charsi', 'chuchi', 'chudne', 'chudwa', 'chutia', 'dalaal', 'dalley', 'hagney', 'harami', 'jhaatu', 'kuttey', 'kutiya', 'laudey', 'launda', 'lounde', 'laundi', 'loundi', 'mammey', 'mootne', 'pesaab', 'peshab', 'pillay', 'pilley', 'pisaab', 'bevda', 'bewda', 'babbe', 'bubey', 'buurr', 'chhod', 'chodd', 'chaat', 'choot', 'chute', 'dalal', 'dalle', 'fattu', 'gadha', 'gadhe', 'gaand', 'gandu', 'gotey', 'gotte', 'haggu', 'hagne', 'jhaat', 'jhatu', 'kutta', 'kutte', 'kutia', 'kutti', 'landi', 'landy', 'laude', 'laura', 'lauda', 'lulli', 'mamme', 'mutne', 'mooth', 'nunni', 'nunnu', 'paaji', 'pesab', 'pilla', 'pille', 'pisab', 'pkmkb', 'raand', 'randi', 'randy', 'tatte', 'tatti', 'tatty',
+                        'otha', 'punda', 'poolu', 'koothi', 'thevudiya', 'thevdiya', 'oombu', 'oombhu', 'sunni', 'sappi', 'omala', 'thuma', 'baadu', 'lavada', 'muttal', 'thayoli', 'suthu', 'poda',
+                        'dengu', 'bosudi', 'modda', 'gudda', 'pooku', 'lanja', 'erugu', 'lafoot', 'nihar', 'sulli', 'sachinoda', 'vedhava', 'vattakai'
+                        'poore', 'maire', 'kunne', 'mairu', 'kunna', 'appikunna', 'beejam', 'chandi', 'dushtan', 'mandu', 'masa', 'mola','myir', 'myre', 'ookki', 'parii','pooru', 'theetam', 'thendi',
+                        'baand', 'batti', 'benne', 'betta', 'bidde', 'bidko', 'bitti', 'bitri', 'blade', 'bolsu', 'chela', 'chool', 'dabba', 'dengu', 'devru', 'diggu', 'dumki', 'gaala', 'gedde', 'goota', 'guggu', 'guldu', 'gundu', 'hadsu', 'hakki', 'hudgi', 'jujbi', 'juttu', 'kaadu', 'kaage', 'kadar', 'kaddi', 'katte', 'kirik', 'kitgo', 'kokke', 'kolte', 'koole', 'kothi', 'kotta', 'kudmi', 'kuiey', 'lodde', 'loosu', 'mabbu', 'macha', 'machi', 'magne', 'maama', 'maamu', 'maava', 'malli', 'manga', 'manne', 'maska', 'medam', 'minda', 'mollu', 'motte', 'nakra', 'nekku', 'othla', 'panta', 'pekra', 'peltu', 'pirki', 'porki', 'pungi', 'ragle', 'saaru', 'scope', 'suvar', 'tadku', 'tagdu', 'taklu', 'tigne', 'tikla', 'tiklu', 'tooku', 'tunne', 'udees', 'aandal', 'achchu', 'adjust', 'bachha', 'batthi', 'bejaan', 'bombat', 'bomman', 'burdey', 'chamak', 'chatri', 'chatta', 'chilre', 'chindi', 'chingi', 'chinki', 'chippu', 'chombu', 'chumma', 'cracku', 'dagaar', 'damaar', 'dingri', 'draabe', 'enamma', 'gaandu', 'gubaal', 'jakaas', 'kachgo', 'kajoor', 'kantri', 'karaab', 'kogile', 'kuroop', 'maanja', 'makkar', 'mangya', 'matash', 'meeter', 'mentlu', 'mindri', 'paakda', 'pantar', 'papplu', 'pigure', 'pinish', 'pyaade', 'sakkat', 'shaata', 'shanta', 'suthgo', 'syaata', 'thupuk', 'tholdu', 'thordu', 'thullu', 'udaisu', 'adklasi', 'ammanni', 'baandli', 'bevarsi', 'bindaas', 'chamcha', 'chameli', 'chamman', 'chappar', 'chootya', 'dabaisu', 'darbesi', 'dichchi', 'ethakko', 'gaampar', 'gamaara', 'guraisu', 'hanumya', 'jamaisu', 'kachchu', 'kalakar', 'kalchko', 'kharaab', 'lagaisu', 'machchu', 'muchchu', 'obiraya', 'pataisu', 'piklati', 'pulchar', 'randike', 'stepney', 'supaari', 'teertha', 'jaiannu', 'adumkoli', 'atkaisko', 'badetade', 'bendethu', 'bolimaga', 'chinaali', 'chinalke', 'hebbettu', 'jhinchak', 'mundaisu', 'naamarda', 'narpetla', 'nigrbeda', 'ninnajji', 'petromax', 'saamaanu', 'turemane', 'choobidu', 'naamaidu', 'tikamaka', 'baddimaga', 'chitranna', 'edbidangi', 'fountainu', 'gaanchali', 'hodskonda', 'kittogiro', 'ninnakkan', 'ninnamman', 'soolemaga', 'guldukhan', 'kambiensu', 'ladyrambo', 'namhudgru', 'sodabuddi', 'tikakobbu', 'dandapinda', 'khatarnaak'
+                        'लंड', 'लौडा', 'लवडा', 'आंड', 'गोटी', 'पुच्ची', 'भोसडा', 'चूत', 'फोदरी', 'फोदी', 'भोक', 'गांड', 'बोचा','झवणे','चोदणे', 'घालणे', 'टाकणे', 'मुतणे', 'उठणे', 'रांड', 'वेश्या', 'छिनाल', 'गांडू', 'चुतिया','चुतिये','मादरचोद','भिकारचोट','रांडेच्या',
+                        'achuda','bara','bhag', 'bhoda', 'chood', 'chudi', 'dhon', 'putki',
+                        'babhuchak', 'bhadvo', 'bhopa', 'bobla', 'bosrina', 'buckwass', 'budhalal','chod', 'chodhru', 'chodkanya', 'chodu', 'chutiya', 'fattu', 'gando', 'ghelchoydi','hopa', 'kutari', 'loda', 'luli', 'namuno', 'puti', 'pikina', 'raand', 'sandas',
+                        'banda', 'bedhei', 'biaa', 'bujula', 'chhodi', 'dana', 'kukura',
+                        'kuti', 'haramjada', 'maachaud','bhander', 'lund', 'doodi', 'phudee', 'rami', 'budh', 'gaandu', 'rundi',
+                        'دلّ', 'حرامی', 'مادر چود', 'چوتیا', 'پُھدو', 'كتی', 'رنڈی', 'جھلّے', 'جھاواں', 'harami', 'madarchod', 'zaleel', 'chutia', 'lora', 'phuddu', 'salaay', 'muthar','lanti', 'khinzir', 'nagora'
+                        ]
+
+    lang = ['hi', 'bn', 'te', 'mr', 'ta', 'ur', 'gu', 'kn', 'ml', 'pa']
+    YT_comments = []
+
+    for index, row in data.iterrows():
+        language_code = row['language_code']
+
+        # Add stopwords for Indic languages
+        if language_code in lang:
+            # Hindi, Tamil, bengali, Telugu, Marathi, Gujarati, malayalam, Kannada, urdu,
+            indic_stopwords = ['और','के','का','की','को','है','एक','में','से','हैं','कर','पर','हो','इस','था','कि','लिए','या','होता','कुछ','करने','वाले','करते','हुए','उनके','उनका','उनकी','करता','इसके','इसका','इसकी','जैसे','कुल','अगर','हम','हमारे','आप','आपके','अपने','अपना','अपनी','आज','कल','कभी','अब','तब','इतना','बहुत','क्योंकि','क्या','कितना','कैसे','जब','तक','जिसके','जिसका','जिसकी','जिसको','जैसा','जिनका','जिनकी','जिनको','जिन्होंने','वर्ग','समय','साथ','पूरा','फिर','उसका','उसकी','उसके','उनको','किसी','वह','वही','वहाँ','वहां','वाली','वाला','वालों','वालीयों','स्वयं'
+                                'aur','ke','ka','kee','ko','hai','ek','mein','se','hain','kar','par','ho','is','tha','ki','lie','ya','hota','kuchh','karane','vaale','karate','hue','unake','unaka','unakee','karata','isake','isaka','isakee','jaise','kul','agar','ham','hamaare','aap','aapake','apane','apana','apanee','aaj','kal','kabhee','ab','tab','itana','bahut','kyonki','kya','kitana','kaise','jab','tak','jisake','jisaka','jisakee','jisako','jaisa','jinaka','jinakee','jinako','jinhonne','varg','samay','saath','poora','phir','usaka','usakee','usake','unako','kisee','vah','vahee','vahaan','vaalee','vaala','vaalon','vaaleeyon','svayan',
+                                'மேலும்','அந்த','இது','அது','இந்த','அந்தக்','ஆனால்','இதன்','அதன்','என்று','இப்போது','இப்போதான்','பின்னர்','பின்','அதில்','இதில்',
+                                'Melum','anta','itu','atu','inta','antak','itaṉ','ataṉ','eṉṟu','ippotu','ippotaṉ','piṉṉar',
+                                'অতএব','অথচ','অথবা','অনুযায়ী','অনেক','অনেকে','অনেকেই','অন্তত','অবধি','অবশ্য','আগামী','আগে','আগেই','আছে','আজ','আবার','আমরা','আমাদের','আমার','আমি','আর','আরও','ই','ইত্যাদি','উত্তর','উপর','উপরে','উত্তরে','উনি','ও','ওই','ওর','ওরা','ওদের','ওহ','ওহে','কখনও','করতে','করবে','করবেন','করা','করাই','করায়','করি','করিতে','করিয়া','করে','করেই','করেছিলেন','করেছে','করেছেন','করেন','কাউকে','কাছ','কাছে','কাজ','কাজে','কারও','কিংবা','কিছু','কিছুই','কিন্তু','কী','কে','কেউ','কেখা','কেন','কোটি','কোন','কোনও','কোনো','ক্ষেত্রে','খুব','গিয়ে','গিয়েছে','গিয়েছেন','গুলি','গেছে','গেছেন','গোটা','চেয়ে','ছাড়া','ছাড়াও','ছিল','ছিলেন','জন','জনগণ','জন্য','জন্যওজে','জানা','ঠিক','তখন','তবু','তবে','তা',
+                                'তাই','তাও','তাকে','তাতে','তাদের','তার','তারপর','তারা','তারৈ','তাহলে','তাহা','তাহাতে','তাহাতেই','তিনি','তিনিও','তুমি','তুলে','তেমন','তো','তোমার','থাকবে','থাকবেন','থাকা','থাকায়','থাকে','থাকেন','থেকে','থেকেই','থেকেও','দিকে','দিতে','দিয়ে','দিয়েছে','দিয়েছেন','দিলেন','দু','দুটি','দুটো','দেওয়া','দেওয়ার','দেওয়ায়','দেখতে','দেখতেই','দেখা','দেখে','দেন','দেয়','দেয়া','দেয়ার','দেয়ায়','দেয়ে','দ্বারা','ধরা','ধরে','নতুন','নয়','না','নাই','নাকি','নাগাদ','নানা','নিজে','নিজেই','নিজেদের','নিজের','নিজেস্থ','নির্দিষ্ট','নেওয়া','নেওয়ার','নেওয়ায়','নয়','পক্ষে','পর','পরে','পরেই','পর্যন্ত','পাওয়া','পারে','পি','পেয়ে','পৌঁছে','প্রতি','প্রথম','প্রভৃতি','প্রাথমিক','প্রায়','প্রযন্ত','প্রায়োজন','প্রায়োজনে','প্রয়োজনীয়','প্রায়োজনীয়তা','প্রয়োজনীয়ভাবে','প্রায়োজনীয়মত','প্রায়োজনীয়৷','ফলে','ফিরে','ফের','বক্তব্য','বদলে',
+                                'বন','বরং','বলতে','বলতেই','বলা','বলে','বলেই','বসে','বহু','বা','বাদে','বার','বিএম','বিশেষ','বিষয়টি','বেশ','বেশি','ব্যবহার','ব্যাপারে','ভাবে','মতো','মতোই','মধ্যভাগে','মধ্যে','মধ্যেই','মধ্যেও','মনে','মাধ্যমে','মাত্র','মোট','মোটেই','যখন','যত','যতটুকু','যতেহে','যা','যাঁর','যাঁরা','যাওয়া','যাওয়ার','যাওয়ায়','যায়','যাকে','যাতে','যাদের','যান','যাবে','যায়','যার','যারা','যে','যেখানে','যেতে','যেন','যেমন','র','রকম','রয়েছে','রাখা','রেখে','শুধু','শুরু','সঙ্গে','সঙ্গেও','সমস্ত','সময়','সব','সবার','সহ','সহিত','সাধারণ','সাথে','সুতরাং','সে','সেই','সেখান','সেখানে','সেটা','সেটি','সেটিই','সেটিও','সেটিওও','সেটিকে',
+                                'అందు','అందుకు','అందున','అందులో','అందులోని','అంత','అంతకంటే','అంతకు','అంతలో','అంతలోని','అనంతర','అని','అనిపిస్తుంది','అను','అనుకుంటుంది','అనుకుంటూ','అనుమానం','అనుమానిస్తుంది','అనుమానిస్తున్నారు','అనుమానిస్తున్నాయి','అనుమానిస్తూ','అన్న','అన్ని','అప్పుడు','అప్పుడే','అయితే','అలా','అలాగే','అందు',
+                                'अधिक', 'अनेक', 'अशी', 'असलयाचे', 'असलेल्या', 'असा', 'असून', 'असे', 'आज', 'आणि', 'आता', 'आपल्या', 'आला', 'आली', 'आले', 'आहे', 'आहेत', 'एक', 'एका', 'कमी', 'करणयात', 'करून', 'का', 'काम', 'काय', 'काही', 'किवा', 'की', 'केला', 'केली', 'केले', 'कोटी', 'गेल्या', 'घेऊन', 'जात', 'झाला', 'झाली', 'झाले', 'झालेल्या', 'टा', 'डॉ', 'तर', 'तरी', 'तसेच', 'ता', 'ती', 'तीन', 'ते', 'तो', 'त्या', 'त्याचा', 'त्याची', 'त्याच्या', 'त्याना', 'त्यानी', 'त्यामुळे', 'त्री', 'दिली', 'दोन', 'न', 'नाही', 'निर्ण्य', 'पण', 'पम', 'परयतन', 'पाटील', 'म', 'मात्र', 'माहिती', 'मी', 'मुबी', 'म्हणजे', 'म्हणाले', 'म्हणून', 'या', 'याचा', 'याची', 'याच्या', 'याना', 'यानी', 'येणार', 'येत', 'येथील', 'येथे', 'लाख', 'व', 'व्यकत', 'सर्व', 'सागित्ले', 'सुरू', 'हजार', 'हा', 'ही', 'हे', 'होणार', 'होत', 'होता', 'होती', 'होते',
+                                'અંત', 'અને', 'અબજ', 'અમે', 'અરે', 'અલગ', 'અસર', 'આગળ', 'આજે', 'આપે', 'આપો', 'આવા', 'આવે', 'આવો', 'ઇડી', 'ઉપર', 'એઆર', 'એએફ', 'એઓઓ', 'એમન', 'ઓછા', 'કંઈ', 'કદર', 'કમન', 'કયુ', 'કરી', 'કરે', 'કરો', 'કહે', 'કહો', 'કામ', 'કીઓ', 'કુલ', 'કેન', 'કેમ', 'કેસ', 'કોઈ', 'કોણ', 'કોન', 'કોમ', 'ખાણ', 'ખાસ', 'ખૂબ', 'ગમે', 'ગયા', 'ગયો', 'ગોળ', 'ઘણા', 'ઘણી', 'ચાર', 'ચાલ', 'છું', 'જમા', 'જાઓ', 'જાય', 'જીઇ', 'જીન', 'જીસ', 'જુએ', 'જુઓ', 'જૂથ', 'જેમ', 'જોઈ', 'ટીપ', 'ટેવ', 'ટોચ', 'ઠીક', 'ડોન', 'તમે', 'તરત', 'તરફ', 'તું', 'તેઓ', 'તેમ', 'તેર', 'થાય', 'દૂર', 'ધૂન', 'નકલ', 'નથી', 'નરક', 'નવી', 'નામ', 'પછી', 'પીઈ', 'પીઠ', 'ફરી', 'ફાઈ', 'ફિફ', 'બંધ', 'બધા', 'બની', 'બને', 'બાર', 'બિન', 'બિલ', 'બેઉ', 'ભરો', 'ભાગ', 'ભેટ', 'મદદ',
+                                'મને', 'મફત', 'મળી', 'મળે', 'માં', 'માફ', 'માલ', 'મિલ', 'મીન', 'યીહ', 'રકમ', 'રહી', 'રેફ', 'લાલ', 'વગર', 'વધુ', 'વલણ', 'વહુ', 'વળે', 'વળો', 'વીસ', 'વેબ', 'શરૂ', 'શું', 'શેડ', 'શેલ', 'શોધ', 'સદા', 'સાગ', 'સાઠ', 'સાત', 'સ્વ', 'હજુ', 'હતા', 'હતી', 'હવે', 'હશે', 'હાય', 'હું', 'હુઈ', 'હેડ', 'હોઈ', 'હોત', 'તેથી', 'અંદર', 'અગાઉ', 'અડધા', 'અથવા', 'અન્ય', 'અમને', 'અર્થ', 'અવસા', 'અહીં', 'આઈડી', 'આપણો', 'આપેલ', 'આભાર', 'ઉચ્ચ', 'એંસી', 'એકદમ', 'એકલા', 'એટલે', 'એનસી', 'એફએફ', 'એમકે', 'એમપી', 'એમવી', 'એમસી', 'એલવી', 'ઓછું', 'ઓરડો', 'કંઈક', 'કદાચ', 'કરશે', 'કલાક', 'કાયમ', 'કારણ', 'કૃપા', 'કેવી', 'કોઈક', 'કોરે', 'ખાલી', 'ખુલે', 'ગર્વ', 'ઘણું', 'ચાલુ', 'ચાલો', 'ચૂકી', 'છતાં', 'જરૂર', 'જવું', 'જાડા', 'જાણે', 'જાણો', 'જાતે', 'જીઆઈ', 'જીવો', 'જૂથો',
+                                'જૂની', 'જોઈએ', 'જોકે', 'ટીટી', 'ટીડી', 'ટીપી', 'ટીવી', 'ટીસી', 'ટેકો', 'ટ્વિ', 'ડાઉન', 'તેણી', 'તેના', 'તેને', 'તેવી', 'ત્રણ', 'થોડા', 'થ્રુ', 'દરેક', 'દ્વિ', 'નંબર', 'નજીક', 'નબળી', 'નવું', 'નહીં', 'નાના', 'નીચા', 'નીચે', 'નુકે', 'પંદર', 'પચાસ', 'પછાત', 'પાંચ', 'પાછળ', 'પાછા', 'પિતૃ', 'પીઆર', 'પીટી', 'પીપી', 'પૂછે', 'પૂરી', 'પેટા', 'પોકળ', 'પોતે', 'બંને', 'બદલે', 'બધું', 'બહાર', 'બાજુ', 'બાલા', 'બીઆર', 'બીજે', 'બીજો', 'બીટી', 'બીડી', 'બીબી', 'બીવી', 'ભાગો', 'મહાન', 'માટે', 'માણસ', 'માને', 'મારા', 'મારી', 'મિલી', 'મીમી', 'મૂકે', 'મૂકો', 'મોટા', 'મોટે', 'મ્યુ', 'રાખે', 'રિંગ', 'રુદન', 'રૂચિ', 'લગભગ', 'લગ્ન', 'લાઇન', 'લાગે', 'લીધો', 'લેતા', 'વર્ગ', 'વર્ષ', 'વિશે', 'વીજી', 'વીસી', 'શક્ય', 'શન્ટ', 'શાંત', 'શોધે', 'શોધો', 'શ્રી', 'સભ્ય', 'સમજુ', 'સમાન', 'સહેજ', 'સાઇટ', 'સાથે',
+                                'સાદર', 'સામે', 'સાયક', 'સીડી', 'સીધા', 'સીવી', 'સુધી', 'સૂચન', 'સૌથી', 'સ્થળ', 'સ્લે', 'હજાર', 'હાજર', 'હેઠળ', 'હેવન', 'હોવા', 'અનામત', 'અમારા', 'અર્પા', 'અવિરત', 'આપણું', 'આપવું', 'આપ્યો', 'આવ્યા', 'આસપાસ', 'ઇચ્છા', 'ઉતાવળ', 'ઉપયોગ', 'ઊગવું', 'એકવાર', 'એમઝેડ', 'ઓરડાઓ', 'ઓર્ડર', 'કંઈપણ', 'કપ્શન', 'કરતાં', 'કરવું', 'કર્યા', 'કહેતા', 'કારણે', 'કારણો', 'કાર્ય', 'કિંમત', 'કુવાઓ', 'કેટલુ', 'કેન્ટ', 'કોઈપણ', 'કોર્સ', 'ક્યાં', 'ક્યાય', 'ક્લિક', 'ખરીદી', 'ખરેખર', 'ખાતરી', 'ગંભીર', 'ગ્રામ', 'ચલાવો', 'ચહેરો', 'ચાલીસ', 'ચુંબન', 'જણાવે', 'જરૂરી', 'જલ્દી', 'જાણતા', 'જાતને', 'જેનું', 'જેમને', 'જેમાં', 'જોડાઓ', 'જોયું', 'જ્યાં', 'ડબારા', 'તથ્યો', 'તદ્દન', 'તમારા', 'તારીખ', 'તેમણે', 'તેમના', 'તેમને', 'તેમાં', 'તૈયાર', 'ત્યાં', 'ત્રીસ', 'થોડું', 'થ્રોગ', 'દયાળુ', 'દેખાય', 'નહોતો', 'નાનું', 'નેવું',
+                                'પછીથી', 'પરંતુ', 'પાતળા', 'પાત્ર', 'પાનું', 'પૂરતા', 'પૂરતૂ', 'પ્રતિ', 'પ્રથમ', 'પ્રિય', 'બતાવે', 'બતાવો', 'બધાને', 'બનાવે', 'બનાવો', 'બપોરે', 'બરાબર', 'બાજુઓ', 'બાયોલ', 'બિંદુ', 'બીજું', 'બીમાર', 'ભયાનક', 'ભિન્ન', 'મહત્વ', 'માંગે', 'માંથી', 'માત્ર', 'માયસે', 'માર્ગ', 'મેન્ટ', 'મેળવો', 'મોટું', 'મોસ્ટ', 'યુવાન', 'યોગ્ય', 'રહ્યા', 'રાજ્ય', 'રાશિઓ', 'લંબાઈ', 'લાંબા', 'લાંબી', 'વગેરે', 'વચ્ચે', 'વત્તા', 'વધારે', 'વર્ણન', 'વર્ષો', 'વસ્તુ', 'વહેલી', 'વળાંક', 'વિદાય', 'વિભાગ', 'વિવિધ', 'વૃદ્ધ', 'શકવું', 'શબ્દો', 'શરૂઆત', 'શૂન્ય', 'સંકેત', 'સંકોચ', 'સંભવત', 'સક્ષમ', 'સભ્યો', 'સમગ્ર', 'સમર્થ', 'સમાવે', 'સહાયક', 'સારું', 'સિવાય', 'સૂચવે', 'સૂચવો', 'હકીકત', 'હમણાં', 'હર્સે', 'હિંમત', 'હોવું', 'અંદરની', 'અગિયાર', 'અનુરૂપ', 'અનુસરે', 'અનુસાર', 'અન્યથા', 'આંતરિક', 'ઇચ્છતા', 'ઉદઘાટન', 'ઉદાહરણ', 'ઉપયોગી',
+                                'ઉપરાંત', 'ઉપલબ્ધ', 'એકંદરે', 'એન.એલ.', 'એન.ડી.', 'એમ.ડી.', 'એમએક્સ', 'ઓછામાં', 'કયારેક', 'કર્યું', 'કહ્યું', 'કિ.મી.', 'કેટલાક', 'કોઈકને', 'ક્યાંક', 'ક્યારે', 'ખુલ્લા', 'ગમ્યું', 'ચહેરાઓ', 'ચોક્કસ', 'ચોખ્ખી', 'ચોખ્ખુ', 'છેલ્લા', 'જીત્યો', 'જ્યારે', 'ડૂબવું', 'તમારું', 'તેઓનું', 'તેણીના', 'દુનિયા', 'દેખીતી', 'દ્વારા', 'નકામું', 'નમસ્તે', 'નવલકથા', 'નવીનતમ', 'નીચેના', 'પરિણામ', 'પહેલાં', 'પહોળાઈ', 'પાંચમો', 'પાછળની', 'પુછવું', 'પુરુષો', 'પુસ્તક', 'પૃષ્ઠો', 'પોઇન્ટ', 'પોતાના', 'પોતાને', 'પ્યાલો', 'પ્રદાન', 'પ્રયાસ', 'ફેરફાર', 'બનાવેલ', 'બન્યું', 'બાદમાં', 'બી.એસ.', 'ભરેલું', 'ભાગ્યે', 'ભૂતકાળ', 'માર્ગો', 'માહિતી', 'મિલિયન', 'મેળવેલ', 'યુપીએસ', 'રસપ્રદ', 'રાખવું', 'લાગતું', 'વધુમાં', 'વસ્તુઓ', 'વાપરવુ', 'વિચારે', 'વિચારો', 'વિપરીત', 'વિશેષણ', 'શક્યતા', 'સંખ્યા', 'સંભવત.', 'સંભવિત', 'સંશોધન', 'સમસ્યા', 'સી.એસ.',
+                                'સી.સી.', 'સીએક્સ', 'સેકન્ડ', 'સોમેથન', 'સ્થાનો', 'સ્પષ્ટ', 'સ્વર્ગ', 'સ્વાગત', 'હંમેશા', 'હાલમાં', 'અસંભવિત', 'આશ્ચર્ય', 'કમનસીબે', 'ક્યાંથી', 'ક્યારેક', 'ક્યારેય', 'ખોલ્યું', 'છુપાવેલ', 'જાણીતું', 'જાહેરાત', 'ટૂંકમાં', 'ત્યાંથી', 'ત્યારથી', 'ત્રીજું', 'દરમિયાન', 'દર્શાવે', 'દોડ્યું', 'ધરાવતું', 'નિરર્થક', 'નીચેનું', 'પરવાનગી', 'પરિણામે', 'પરિણામો', 'પરીક્ષણ', 'પહેલાથી', 'પહેલેથી', 'પૂછ્યું', 'બાજુમાં', 'બાદબાકી', 'મધ્યાહન', 'મોકલ્યો', 'લાગ્યું', 'લેવામાં', 'વપરાયેલ', 'વર્ણવેલ', 'વિગતવાર', 'વિભાજિત', 'વિરુદ્ધ', 'વિસ્તાર', 'વેબસાઇટ', 'વ્યાજબી', 'શ્રીમતી', 'શ્રીમાન', 'શ્રેષ્ઠ', 'સંખ્યાઓ', 'સંપૂર્ણ', 'સંબંધિત', 'સમર્થિત', 'સમસ્યાઓ', 'સામાન્ય', 'સિત્તેર', 'અનુક્રમે', 'અનુસર્યા', 'ઉપયોગિતા', 'ઉમેર્યું', 'ટ્રિલિયન', 'ત્યારબાદ', 'ધ્યાનમાં', 'નેટસ્કેપ', 'નોંધ્યું', 'પૂર્ણાંક', 'પૂર્વવત્', 'પોઇન્ટેડ', 'પ્રસ્તુત', 'બતાવ્યું', 'બનાવેલું', 'ભૂતપૂર્વ', 'મૂકવામાં', 'વિદેશમાં',
+                                'શંકાસ્પદ', 'સંકળાયેલ', 'સમાનરૂપે', 'સહેલાઇથી', 'અપનાવ્યું', 'અવગણવામાં', 'અસરગ્રસ્ત', 'કમ્પ્યુટર', 'કિલોગ્રામ', 'ગંભીરતાથી', 'ચોક્કસપણે', 'જરૂરિયાતો', 'તાજેતરમાં', 'તાત્કાલિક', 'નિષ્ઠાવાન', 'નોંધપાત્ર', 'પોઇન્ટિંગ', 'પ્રમાણમાં', 'ભારપૂર્વક', 'મિલિગ્રામ', 'મુખ્યત્વે', 'મેળવવામાં', 'વિચાર્યું', 'વ્યાપકપણે', 'શક્તિશાળી', 'શુભેચ્છાઓ', 'અનુલક્ષીને', 'મહત્વપૂર્ણ', 'સંપૂર્ણપણે', 'અનુક્રમણિકા', 'આસ્થાપૂર્વક', 'જરૂરિયાતમંદ', 'સફળતાપૂર્વક', 'માઇક્રોસોફ્ટ', 'સંક્ષિપ્તમાં',
+                                'അതിനാൽ','അവ','അവരുടെ','അവരെ','അവരെന്ന','അവര്','അവര്ക്ക്','അവരോട്',
+                                'ಈ','ಆದರೆ','ಎಂದು','ಅವರ','ಮತ್ತು','ಎಂಬ','ಅವರು','ಒಂದು','ಬಗ್ಗೆ','ಆ','ಇದೆ','ಇದು','ನಾನು','ಮೂಲಕ','ನನ್ನ','ಅದು','ಮೇಲೆ','ಈಗ','ಹಾಗೂ','ಇಲ್ಲ','ಮೊದಲ','ನನಗೆ','ಹೆಚ್ಚು','ಅವರಿಗೆ','ತಮ್ಮ','ಮಾಡಿ','ನಮ್ಮ','ಮಾತ್ರ','ದೊಡ್ಡ','ಅದೇ','ಕೂಡ','ಸಿನಿಮಾ','ಯಾವುದೇ','ಯಾವ','ಆಗ','ತುಂಬಾ','ನಾವು','ದಿನ','ಬೇರೆ','ಅವರನ್ನು','ಎಲ್ಲಾ','ನೀವು','ಸಾಕಷ್ಟು','ಕನ್ನಡ','ಹೊಸ','ಮುಂದೆ','ಹೇಗೆ','ನಂತರ','ಇಲ್ಲಿ','ಕೆಲಸ','ಅಲ್ಲ','ಬಳಿಕ','ಒಳ್ಳೆಯ','ಹಾಗಾಗಿ','ಒಂದೇ','ಜನ','ಅದನ್ನು','ಬಂದ','ಕಾರಣ','ಅವಕಾಶ','ವರ್ಷ','ನಿಮ್ಮ','ಇತ್ತು','ಚಿತ್ರ','ಹೇಳಿ','ಮಾಡಿದ','ಅದಕ್ಕೆ','ಆಗಿ','ಎಂಬುದು','ಅಂತ','ಕೆಲವು','ಮೊದಲು','ಬಂದು','ಇದೇ','ನೋಡಿ','ಕೇವಲ','ಎರಡು','ಇನ್ನು','ಅಷ್ಟೇ','ಎಷ್ಟು','ಚಿತ್ರದ','ಮಾಡಬೇಕು','ಹೀಗೆ','ಕುರಿತು','ಉತ್ತರ','ಎಂದರೆ','ಇನ್ನೂ','ಮತ್ತೆ','ಏನು','ಪಾತ್ರ','ಮುಂದಿನ','ಸಂದರ್ಭದಲ್ಲಿ',
+                                'ಮಾಡುವ','ವೇಳೆ','ನನ್ನನ್ನು','ಮೂರು','ಅಥವಾ','ಜೊತೆಗೆ','ಹೆಸರು','ಚಿತ್ರದಲ್ಲಿ',
+                                'ਇਹ','ਉਸ','ਇੱਕ','ਹੈ','ਕਾ','ਕੀ','ਕੋ','ਅਤੇ','ਨੇ','ਕੀਤਾ','ਹੋਇਆ','ਸੀ','ਸੀ','ਥਾ','ਥੀ','ਸੰਗ','ਉਸਨੇ','ਇਸਦੇ','ਉਨਦੇ','ਸਭ','ਕੁਝ','ਕਿਸੇ','ਕਿੱਥੋਂ','ਕਿਵੇਂ','ਕਿਉਂ','ਕੋਈ','ਇਹਨਾਂ','ih','us','ik','hai','ka','ki','ko','ate','ne','kita','hoiya','si','si','tha','thi','sang','usne','isde','unde','sabh','kujh','kise','kithon','kiven','kiun','koi','ihnan',
+                                'آئی','آئے','آج','آخر','آخرکبر','آدهی','آًب','آٹھ','آیب','اة','اخبزت','اختتبم','ادھر','ارد','اردگرد','ارکبى','اش','اضتعوبل','اضتعوبلات','اضطرذ','اضکب','اضکی','اضکے','اطراف','اغیب','افراد','الگ','اور','اوًچب','اوًچبئی','اوًچی','اوًچے','اى','اً','اًذر','اًہیں','اٹھبًب','اپٌب','اپٌے','اچھب','اچھی','اچھے','اکثر','اکٹھب','اکٹھی','اکٹھے','اکیلا','اکیلی','اکیلے','اگرچہ','اہن','ایطے','ایک','ب','ت','تبزٍ','تت','تر','ترتیت','تریي','تعذاد','تن','تو','توبم','توہی','توہیں','تٌہب','تک','تھب','تھوڑا','تھوڑی','تھوڑے','تھی','تھے','تیي','ثب','ثبئیں','ثبترتیت','ثبری','ثبرے','ثبعث','ثبلا','ثبلترتیت','ثبہر','ثدبئے','ثرآں','ثرش','ثعذ','ثغیر','ثلٌذ','ثلٌذوثبلا','ثلکہ','ثي','ثٌب','ثٌبرہب','ثٌبرہی','ثٌبرہے','ثٌبًب','ثٌذ','ثٌذکرو','ثٌذکرًب'
+                                ,'ثٌذی','ثڑا','ثڑوں','ثڑی','ثڑے','ثھر','ثھرا','ثھراہوا','ثھرپور','ثھی','ثہت','ثہتر','ثہتری','ثہتریي','ثیچ','ج','خب','خبرہب','خبرہی','خبرہے','خبهوظ','خبًب','خبًتب','خبًتی','خبًتے','خبًٌب','خت','ختن','خجکہ','خص','خططرذ','خلذی','خو','خواى','خوًہی','خوکہ','خٌبة','خگہ','خگہوں','خگہیں','خیطب','خیطبکہ','در','درخبت','درخہ','درخے','درزقیقت','درضت','دش','دفعہ','دلچطپ','دلچطپی','دلچطپیبں','دو','دور','دوراى','دوضرا','دوضروں','دوضری','دوضرے','دوًوں','دکھبئیں','دکھبتب','دکھبتی','دکھبتے','دکھبو','دکھبًب','دکھبیب','دی','دیب','دیتب','دیتی','دیتے','دیر','دیٌب','دیکھو','دیکھٌب','دیکھی','دیکھیں','دے','ر','راضتوں','راضتہ','راضتے','رریعہ','رریعے','رکي','رکھ','رکھب','رکھتب','رکھتبہوں','رکھتی','رکھتے','رکھی','رکھے','رہب','رہی','رہے','ز','زبصل'
+                                ,'زبضر','زبل','زبلات','زبلیہ','زصوں','زصہ','زصے','زقبئق','زقیتیں','زقیقت','زکن','زکویہ','زیبدٍ','صبف','صسیر','صفر','صورت','صورتسبل','صورتوں','صورتیں','ض','ضبت','ضبتھ','ضبدٍ','ضبرا','ضبرے','ضبل','ضبلوں','ضت','ضرور','ضرورت','ضروری','ضلطلہ','ضوچ','ضوچب','ضوچتب','ضوچتی','ضوچتے','ضوچو','ضوچٌب','ضوچی','ضوچیں','ضکب','ضکتب','ضکتی','ضکتے','ضکٌب','ضکی','ضکے','ضیذھب','ضیذھی','ضیذھے','ضیکٌڈ','ضے','طرف','طریق','طریقوں','طریقہ','طریقے','طور','طورپر','ظبہر','ع','عذد','عظین','علاقوں','علاقہ','علاقے','علاوٍ','عووهی','غبیذ','غخص','غذ','غروع','غروعبت','غے','فرد','فی','ق','قجل','قجیلہ','قطن','لئے','لا','لازهی','لو','لوجب','لوجی','لوجے','لوسبت','لوسہ','لوگ','لوگوں','لڑکپي','لگتب','لگتی','لگتے','لگٌب','لگی','لگیں','لگے','لی','لیب','لیٌب','لیں',
+                                'لے','ه','هتعلق','هختلف','هسترم','هسترهہ','هسطوش','هسیذ','هطئلہ','هطئلے','هطبئل','هطتعول','هطلق','هعلوم','هػتول','هلا','هوکي','هوکٌبت','هوکٌہ','هٌبضت','هڑا','هڑًب','هڑے','هکول','هگر','هہرثبى','هیرا','هیری','هیرے','هیں','و','وار','والے','وٍ','ًئی','ًئے','ًب','ًبپطٌذ','ًبگسیر','ًطجت','ًقطہ','ًو','ًوخواى','ًکبلٌب','ًکتہ','ًہ','ًہیں','ًیب','ًے'
+            ]
+            stop_words.extend(indic_stopwords)
+
+        comment = row['comment_textDisplay']
+
+        comment_cleaned = re.sub(r'[^\w\s]', '', comment)
+        ytwords = comment_cleaned.split()
+
+        ytwords = [ytword for ytword in ytwords if ytword.lower() not in stop_words and ytword.lower() not in custom_profanitywords]
+        ytwords = [ytword for ytword in ytwords if not profanity.contains_profanity(ytword)]
+
+        cleaned_comment = " ".join(ytwords)
+        YT_comments.append(cleaned_comment)
+
+    YT_comments_final = data.copy()
+    YT_comments_final['comment_textDisplay'] = YT_comments
+
+    return YT_comments_final
 ################################################################################################
 #Step17: Source didnt had label. We are adding labels based on tags
 def CreateFlagsbyLabelingParty(sourcedata):
@@ -517,25 +578,26 @@ def Compute_polarity_score_mBERT(sourcedata, columnname, langColumn):
     :type langColumn: str
     :return: data frame
     """
-    distinct_langcodes = sourcedata[langColumn].unique()
+    distinct_langcodes = sorted(sourcedata[langColumn].unique())
+    print(distinct_langcodes)
 
     model_lang_tokenizer_map = {
-        "en": "bert-base-multilingual-uncased",
-        "hi": "bert-base-multilingual-uncased",
-        "bn": "bert-base-multilingual-uncased",
-        "te": "bert-base-multilingual-uncased",
-        "ta": "bert-base-multilingual-uncased",
-        "mr": "bert-base-multilingual-uncased",
-        "ur": "bert-base-multilingual-uncased",
-        "gu": "bert-base-multilingual-uncased",
-        "kn": "bert-base-multilingual-uncased",
-        "ml": "bert-base-multilingual-uncased",
-        "pa": "bert-base-multilingual-uncased",
-        "or": "bert-base-multilingual-uncased"
+        "hi": "bert-base-multilingual-cased",
+        "bn": "bert-base-multilingual-cased",
+        "ta": "bert-base-multilingual-cased",
+        "te": "bert-base-multilingual-cased",
+        "mr": "bert-base-multilingual-cased",
+        "ml": "bert-base-multilingual-cased",
+        "or": "bert-base-multilingual-cased",
+        "kn": "bert-base-multilingual-cased",
+        "gu": "bert-base-multilingual-cased",
+        "pa": "bert-base-multilingual-cased",
+        "ur": "bert-base-multilingual-cased",
+        "en": "bert-base-multilingual-cased"
     }
 
     def compute_polarity(text, tokenizer, model):
-        inputs = tokenizer(text, padding=True, truncation=True, return_tensors="pt")
+        inputs = tokenizer(text, max_length=128, padding=True, truncation=True, return_tensors="pt")
         with torch.no_grad():
             outputs = model(**inputs)
             logits = outputs.logits
@@ -546,6 +608,7 @@ def Compute_polarity_score_mBERT(sourcedata, columnname, langColumn):
 
     for language_code in distinct_langcodes:
         if language_code in model_lang_tokenizer_map:
+            print(f"Language code {language_code} ")
             model_name = model_lang_tokenizer_map[language_code]
             tokenizer = BertTokenizer.from_pretrained(model_name)
             model = BertForSequenceClassification.from_pretrained(model_name, num_labels=3)
@@ -593,21 +656,21 @@ def NLP_BASEMODEL_LANGUAGES_mBERT(sourcedata, batch_size, num_epochs, num_classe
     :type num_classes: int
     :return: data frame
     """
-    Distinct_Languages = sourcedata['language_code'].unique()
+    Distinct_Languages = sorted(sourcedata['language_code'].unique())
 
     model_tokenizer_mapping = {
-        "en": "bert-base-multilingual-uncased",
-        "hi": "bert-base-multilingual-uncased",
-        "bn": "bert-base-multilingual-uncased",
-        "te": "bert-base-multilingual-uncased",
-        "ta": "bert-base-multilingual-uncased",
-        "mr": "bert-base-multilingual-uncased",
-        "ur": "bert-base-multilingual-uncased",
-        "gu": "bert-base-multilingual-uncased",
-        "kn": "bert-base-multilingual-uncased",
-        "ml": "bert-base-multilingual-uncased",
-        "pa": "bert-base-multilingual-uncased",
-        "or": "bert-base-multilingual-uncased"
+        "hi": "bert-base-multilingual-cased",
+        "bn": "bert-base-multilingual-cased",
+        "ta": "bert-base-multilingual-cased",
+        "te": "bert-base-multilingual-cased",
+        "mr": "bert-base-multilingual-cased",
+        "ml": "bert-base-multilingual-cased",
+        "or": "bert-base-multilingual-cased",
+        "kn": "bert-base-multilingual-cased",
+        "gu": "bert-base-multilingual-cased",
+        "pa": "bert-base-multilingual-cased",
+        "ur": "bert-base-multilingual-cased",
+        "en": "bert-base-multilingual-cased"
     }
 
     metrics_dict = {
@@ -621,7 +684,7 @@ def NLP_BASEMODEL_LANGUAGES_mBERT(sourcedata, batch_size, num_epochs, num_classe
 
     for language_code in Distinct_Languages:
         #model and tokenizer name for language code
-        model_name = model_tokenizer_mapping.get(language_code, 'bert-base-multilingual-cased')
+        model_name = model_tokenizer_mapping.get(language_code, 'bert-base-multilingual-uncased')
         language_df = sourcedata[sourcedata['language_code'] == language_code]
         train_df, test_df = train_test_split(language_df, test_size=0.3, random_state=42)
 
@@ -723,22 +786,22 @@ def NLP_FINETUNEDMODEL_LANGUAGES_mBERT(sourcedata, batch_size, num_epochs, num_c
     :type num_classes: int
     :return: data frame
     """
-    Distinct_Languages = sourcedata['language_code'].unique()
+    Distinct_Languages = sorted(sourcedata['language_code'].unique())
 
     # Define a mapping of language codes to model names
     model_tokenizer_mapping = {
-        "en": "bert-base-multilingual-uncased",
-        "hi": "bert-base-multilingual-uncased",
-        "bn": "bert-base-multilingual-uncased",
-        "te": "bert-base-multilingual-uncased",
-        "ta": "bert-base-multilingual-uncased",
-        "mr": "bert-base-multilingual-uncased",
-        "ur": "bert-base-multilingual-uncased",
-        "gu": "bert-base-multilingual-uncased",
-        "kn": "bert-base-multilingual-uncased",
-        "ml": "bert-base-multilingual-uncased",
-        "pa": "bert-base-multilingual-uncased",
-        "or": "bert-base-multilingual-uncased"
+        "hi": "bert-base-multilingual-cased",
+        "bn": "bert-base-multilingual-cased",
+        "ta": "bert-base-multilingual-cased",
+        "te": "bert-base-multilingual-cased",
+        "mr": "bert-base-multilingual-cased",
+        "ml": "bert-base-multilingual-cased",
+        "or": "bert-base-multilingual-cased",
+        "kn": "bert-base-multilingual-cased",
+        "gu": "bert-base-multilingual-cased",
+        "pa": "bert-base-multilingual-cased",
+        "ur": "bert-base-multilingual-cased",
+        "en": "bert-base-multilingual-cased"
     }
 
     metrics_dict = {
@@ -842,13 +905,33 @@ def NLP_FINETUNEDMODEL_LANGUAGES_mBERT(sourcedata, batch_size, num_epochs, num_c
     FinetunedModel_Eval_metrics = pd.DataFrame(metrics_dict)
     return FinetunedModel_Eval_metrics
 
+################################################################################################
+
+def YTcount_words(Ytcomments):
+    """
+    Author: Jagadeesan Rajalakshmi Vellaichamy
+    Reviewer: Dani Papamaximou
+    Created At: 27/08/2023
+    Description: This function will give number of words per comment
+    :param Ytcomments: data frame
+    :type Ytcomments: data frame
+    :return: int
+    """
+    commentstoken = Ytcomments.split()
+    return len(commentstoken)
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+    print(f"The Program run start time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     start_date = '2019-01-01'
     end_date = '2019-04-10'
     # data = pd.read_csv("C:\\Dissertation_2023\\youtube_comments\\youtube_apidata_47.csv", sep=',')
     data = FileReadFromDirectory("C:\\Dissertation_2023\\youtube_comments\\", "youtube_apidata_*.csv")
+    data = data.drop('comment_authorDisplayName', axis=1) #Dropping column since user related info present
+    print(f"The Youtube comments raw data row and column counts are: {data.shape[0]}, {data.shape[1]}")
     data = AnalysisWindowTimePeriodFilter(data, start_date, end_date, "ytvideo_publishedAt")
+    print(f"The Youtube comments after Jan-apr date filter row and column counts are: {data.shape[0]}, {data.shape[1]}")
     data = SmileyConversiontoTexts(data, "comment_textDisplay")
     data['comment_textDisplay'] = data['comment_textDisplay'].apply(EmojiRemovalfromComments)
     data = Remove_NAs_Blanks(data, "comment_textDisplay")
@@ -859,20 +942,36 @@ if __name__ == '__main__':
     data = SinglegramComments_Removal(data, 'comment_textDisplay')
     data = NumbersinComments_Removal(data, 'comment_textDisplay')
     data = RepeatwordsInCommentsRemoval(data, 'comment_textDisplay')
+    print(f"The preprocessing completion time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     data_eng = data[data['language_code'] == 'en']
+    data_eng = English_comments_to_lower(data_eng, 'comment_textDisplay')
     data_eng = data_eng.apply(Custom_language_detection, axis=1)
     data_eng = data_eng.apply(Custom_language_code_mapping, axis=1)
-    data_eng = English_comments_to_lower(data_eng, 'comment_textDisplay')
-    data_eng['comment_textDisplay'] = data_eng['comment_textDisplay'].apply(lambda x: Stopwords_detection_removal(x))
+    data_eng = Stopwords_Profanity_detection_removal(data_eng)
     data_noneng = data[data['language_code'] != 'en']
+    data_noneng = Stopwords_Profanity_detection_removal(data_noneng)
     final = pd.concat([data_eng, data_noneng], ignore_index=True)
     final = CreateFlagsbyLabelingParty(final)
     final = RemoveCommentswithallFlags0(final)  # Removing comments which has flag values bjp=0 and ing=0
     final = BlankCommentsRemoval(final, 'comment_textDisplay')
+    print(f"The Youtube comments cleansed data row and column counts are: {final.shape[0]}, {final.shape[1]}")
+    final['YTword_count'] = final['comment_textDisplay'].apply(YTcount_words) #checking number of words present per youtube comment and taking summary
+    summary_table = final.groupby('YTword_count').size().reset_index(name='Frequency')
+    print(summary_table.head(50), summary_table.tail(50))
     final = Compute_polarity_score_mBERT(final, "comment_textDisplay", "language_code")
     final["mBert_sentiment"] = final.apply(compute_sentiments, axis=1)
+    print(f"The labeling sentiment - polarity completion time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     final.to_csv("C:\\Dissertation_2023\\Youtube_Clean_dataframe.csv", index=False)
+
+    print(f"The BASE MODEL Build start time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     mBERTbaseModel_metrics = NLP_BASEMODEL_LANGUAGES_mBERT(final, 2, 1, 3)
-    mBERTFitModel_metrics = NLP_FINETUNEDMODEL_LANGUAGES_mBERT(final, 2, 1, 3, 2e-5)
+    print(f"The BASE MODEL Build completed time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    print(f"The FINETUNED MODEL Build start time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    mBERTFitModel_metrics = NLP_FINETUNEDMODEL_LANGUAGES_mBERT(final, 4, 5, 3, 2e-5) #adamW optimizer
+    print(f"The FINETUNED MODEL Build completed time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
     mbert_lang_eva_metrics = pd.concat([mBERTbaseModel_metrics, mBERTFitModel_metrics], ignore_index=True)
     mbert_lang_eva_metrics.to_csv("C:\\Dissertation_2023\\NLP_mBERT_Metrics.csv", index=False)
+    print(f"The Program run end time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("The Sentiment analysis prediction model run completed")
