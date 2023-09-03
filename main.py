@@ -22,16 +22,17 @@ import string
 import re
 import datetime
 import numpy as np
-import nltk
 import torch
+from torch.utils.data import DataLoader, TensorDataset
+from langdetect import detect, DetectorFactory
+from better_profanity import profanity
+from tqdm import tqdm
+import nltk
+from nltk import word_tokenize
 from nltk.corpus import stopwords
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.model_selection import train_test_split
 from transformers import BertTokenizer, BertForSequenceClassification, AdamW
-from torch.utils.data import DataLoader, TensorDataset
-from tqdm import tqdm
-from langdetect import detect, DetectorFactory
-from better_profanity import profanity
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -214,78 +215,7 @@ def DuplicateCommentsRemoval(sourcedata, columnname):
     nodupdf = sourcedata.drop_duplicates(subset=[columnname])
     return nodupdf
 ###############################################################################################
-#Step8: Identify the regional language based on text comments
-DetectorFactory.seed = 0
-def Language_Identification(sourcedata, columnname):
-    """
-    Author: Jagadeesan Rajalakshmi Vellaichamy
-    Reviewer: Dani Papamaximou
-    Created At: 20/08/2023
-    Description: This function identifies the regional languages in the comments column
-    :param sourcedata: The source data frame
-    :type sourcedata: data frame
-    :param columnname: The comments text column
-    :type columnname: str
-    :return: data frame
-    """
-    indi_lang = {
-        'hi': 'Hindi',
-        'bn': 'Bengali',
-        'te': 'Telugu',
-        'ta': 'Tamil',
-        'mr': 'Marathi',
-        'ur': 'Urdu',
-        'gu': 'Gujarati',
-        'kn': 'Kannada',
-        'ml': 'Malayalam',
-        'pa': 'Punjabi',
-        'or': 'Odia'
-    }
-
-    def Language_Identification_helper(comments):
-        try:
-            detected_lang = detect(comments)
-            if detected_lang in indi_lang:
-                return indi_lang[detected_lang], detected_lang
-            return "English", "en"
-        except:
-            return "unknown", "unknown"
-
-    sourcedata['language'], sourcedata['language_code'] = zip(*sourcedata[columnname].apply(Language_Identification_helper))
-    return sourcedata
-###############################################################################################
-#Step9: Remove the comments with language unknown or not identified
-def Unidentified_language_removal(sourcedata):
-    """
-    Author: Jagadeesan Rajalakshmi Vellaichamy
-    Reviewer: Dani Papamaximou
-    Created At: 20/08/2023
-    Description: This function removes unknown languages
-    :param sourcedata: The source data frame
-    :type sourcedata: data frame
-    :return: data frame
-    """
-    # Remove rows with 'unknown' language_code
-    validlangdf = sourcedata[sourcedata['language_code'] != 'unknown'].copy()
-    return validlangdf
-###############################################################################################
-#Step10: Remove the comments with single grams
-def SinglegramComments_Removal(sourcedata, columnname):
-    """
-    Author: Jagadeesan Rajalakshmi Vellaichamy
-    Reviewer: Dani Papamaximou
-    Created At: 20/08/2023
-    Description: This function removes the comments with only 1 word in it
-    :param sourcedata: The source data frame
-    :type sourcedata: data frame
-    :param columnname: The comments text column
-    :type columnname: str
-    :return: data frame
-    """
-    sourcedata = sourcedata[sourcedata[columnname].str.split().str.len() > 1]
-    return sourcedata
-###############################################################################################
-#Step11: Remove the numbers in the comments
+#Step8: Remove the numbers in the comments
 def NumbersinComments_Removal(sourcedata, columnname):
     """
     Author: Jagadeesan Rajalakshmi Vellaichamy
@@ -301,7 +231,7 @@ def NumbersinComments_Removal(sourcedata, columnname):
     sourcedata[columnname] = sourcedata[columnname].apply(lambda x: re.sub(r'\d+', '', x))
     return sourcedata
 ###############################################################################################
-#Step12: Remove the repeat words in the comments
+#Step9: Remove the repeat words in the comments
 def RepeatwordsInCommentsRemoval(sourcedata, columnname):
     """
     Author: Jagadeesan Rajalakshmi Vellaichamy
@@ -317,161 +247,7 @@ def RepeatwordsInCommentsRemoval(sourcedata, columnname):
     sourcedata[columnname] = sourcedata[columnname].apply(lambda x: ' '.join(dict.fromkeys(x.split())))
     return sourcedata
 ###############################################################################################
-#Step13: Additional iteration in updating the Roman Script of Indian regional languages
-#List of custom words (bag of words) used in identifying the Roman script of indian languages
-words_to_check = {
-    'Hindi': ['aap','hum','yeh','sur','nat','bhi','jee','koi','aao','kya','maa','har','nit','bal','hai','din','kal','man','mai','tum','dil','mel','bol','hal','aur','kab','ban','hun','lev','hua','dom','bas','lou','kar','mat','dam','nas','nav','dut','gam','dev','rah','git','ram','ras','roz','laal','maaf','naam','raat','jald','maan','paas','rahi','saaf','aage','nach','rais','taap','gyan','gair','maya','dard','hona','jana','upar','liye','mana','chod','prem','band','chal','nayi','bhag','tark','chah','jiye','kuch','patr','tele','kadi','tika','atma','hand','hara','naav','pata','bojh','daak','sang','suru','daal','kaam','bhav','mukh','baat','jaag','urja','baja','dand','hans','nahi','path','dhua','nari','bali','lohe','loka','loni','vrat','jyon','mani','naak','sham','noor','mouj','waqt','zila','chor','kavi','khel','sima','deta','khub','soch','dhan','naya','dukh','lagi','nira','doga','lahu','pani','ekta','data','pita','garv','ghar','mera','desh','teji','raja','roop','rang','haar','kone','gaadi','jaisa','karna','paani','saath','uchit','bheed','garmi','karne','naari','taana','vastu','yatra','dhyan','garam','jaldi','karta','laakh','maang','udyog','khush','chaya','kadam','kuchh','niyam','pyaar','sagar','aankh','aaram','gayak','nayak','parya','yuddh','gyaan','mitti','samay','tarah','cinta','tatha','andar','divas','akeli','chota','bhakt','pauna','satya','jivan','kursi','saneh','avsar','mooch','paida','dalne','janam','kshan','odhni','pankh','upyog','daman','keeda','palna','badan','dhire','lakar','lagta','bagal','hathi','manch','poora','bahut','lagna','namak','varan','jevan','naada','vastr','badal','dhuaa','vidhi','humre','baste','jiwan','jadoo','basti','baten','navin','kabhi','beech','chand','kanha','nipat','bhaav','kajal','bhara','karya','katha','munde','bhool','murti','zarur','mudit','sidhi','daana','khaas','kisan','naadi','khoob','konsa','kiran','nidhi','nanha','sthan','cheta','lajja','paksh','kadar','lamba','patra','dagar','farak','patth','maarg','karan','mahal','khata','takat','kheli','dhaar','khana','tirth','ghoos','khyal','dhatu','goonj','treta','dhood','ruchi','dhool','tukda','haath','sadaa','tyaag','antib','bilkul','dheere','taakat','yahaan','zaroor','chehra','humein','laayak','chetan','saahas','vichar','zubaan','bhasha','takkal','vahaan','chinta','dekhna','sanket','vigyan','dimaag','hansna','sanyog','virodh','makaan','sansay','ashaat','mausam','chupke','vritti','nagari','pallav','unchai','atithi','jalana','nikhar','dharna','haraan','sangam','baccha','hamare','khayal','sanyam','janlev','samaaj','vastav','prabha','baatna','jhapat','lashan','prerna','dhvani','sankat','bahana','dhyaan','vishay','choona','nashta','preeti','sapnaa','vyakti','dhakka','purush','shakti','kahani','shanti','bhajan','kaamna','shreya','yantra','katori','sharir','kavita','keemat','bhojan','khelna','zoorna','kudrat','sparsh','dhoodh','doosra','nirnay','spasht','sundar','daaman','kamaal','nirmal','swapna','kamzor','swasth','dastak','paudha','gathri','peedit','mahila','prayas','swayam','gaurav','prakop','khidki','dharam','raksha','toofan','kirana','rupaya','sachet','rupiya','chahiye','vaastav','achchha','zindagi','hungama','chalana','sandesh','vinamra','koshish','macchar','nivedan','vishram','vishesh','bhashan','duskami','drishya','sacchai','uplabdh','dheeraj','patthar','pragati','sanyasi','vasudha','bandish','barasna','sankhya','bandhna','pradaan','vimarsh','pradesh','santaan','dilwala','vishwas','bhagwan','chetana','vyanjan','chintan','mulayam','bhushan','bhraman','sindoor','chakkar','nischay','nirdesh','pakshap','swabhav','pichhda','prakash','prerana','prishth','dhaaran','dharati','trishna','triveni','uddeshya','parchhai','chutkara','santulan','kvyapaar','samjhana','jhanjhna','dikhlana','prayatna','shikayat','vyavahar','shradhha','kartavya','siddhant','dakshina','bikharna','charitra','pahunche','suraksha','paryatan','taiyaari','tatkalin','ghinouna','parvachan','vichchhed','chopadiya','dhaaranaa','baksheesh','sangharsh','sanrachna','vyavastha','nishpatti','chikitsak','sindhutva','dhakelana','giraftaar','dhanyavaad','niyantraan','pratishodh','swatantrata','pratiyogita','pratispardha'],
-    'Bengali': ['alo','ase','din','maa','nai','nei','noy','paa','ami','eto','kya','koi','ato','eta','jao','mar','rup','sei','tui','abar','aati','ache','anek','baal','boli','bose','chai','didi','dike','emon','haan','haat','habe','hobe','jabo','jana','kaaj','keno','kore','kuno','lage','lali','mama','mane','mone','naam','naki','nijo','onno','pujo','saja','suru','vaat','asbe','boro','haoa','pora','saho','thik','amar','tumi','paro','shob','taai','koto','balo','kaal','toke','baba','chul','ghar','hare','jabe','kono','koro','mata','mere','mile','more','moto','name','onek','opor','pare','pele','rate','rong','acche','aasha','achhe','adhik','baaje','bhalo','bhora','chaai','dekhe','dhoro','email','holam','karon','khela','kichu','kotha','lomba','matha','porbe','raate','roilo','snaan','tomay','varsa','ashon','ashte','ashun','bhebe','bhule','chaay','gache','korbe','lagbe','rakho','ekbar','korte','kemon','aache','bolte','tomar','jemon','kemne','kamon','parbe','amake','chele','choto','hashe','kheye','khete','khusi','lojja','mayer','natok','pashe','patha','phire','shuru','thake','tomra','aadhar','aamaar','ananda','ashaay','bhasha','britha','chaalo','chhoto','chokhe','deoyal','gobhir','saathe','avabar','bondhu','hochhe','shomoy','korcho','shathe','bujhte','lagche','kobita','bilkul','dheere','taakat','yahaan','zaroor','chehra','humein','laayak','chetan','saahas','vichar','zubaan','takkal','vahaan','chinta','dekhna','sanket','vigyan','dimaag','hansna','sanyog','virodh','makaan','sansay','ashaat','mausam','chupke','vritti','nagari','pallav','unchai','atithi','jalana','nikhar','dharna','haraan','sangam','baccha','hamare','khayal','sanyam','janlev','samaaj','vastav','prabha','baatna','jhapat','lashan','prerna','dhvani','sankat','bahana','dhyaan','vishay','choona','nashta','preeti','sapnaa','vyakti','dhakka','purush','shakti','kahani','shanti','bhajan','kaamna','shreya','yantra','katori','sharir','kavita','keemat','bhojan','khelna','zoorna','kudrat','sparsh','dhoodh','doosra','nirnay','spasht','sundar','daaman','kamaal','nirmal','swapna','kamzor','swasth','dastak','paudha','gathri','peedit','mahila','prayas','swayam','gaurav','prakop','khidki','dharam','raksha','toofan','kirana','rupaya','sachet','rupiya','apnake','ashena','bangla','dekhte','jibone','school','shudhu','tahole','thakbe','tokhon','tomake','aananda','krishno','opekkha','thaakbe','bhushon','korecho','bujhchi','chahiye','vaastav','achchha','zindagi','hungama','chalana','sandesh','vinamra','koshish','macchar','nivedan','vishram','vishesh','bhashan','duskami','drishya','sacchai','uplabdh','dheeraj','patthar','pragati','sanyasi','vasudha','bandish','barasna','sankhya','bandhna','pradaan','vimarsh','pradesh','santaan','dilwala','vishwas','bhagwan','chetana','vyanjan','chintan','mulayam','bhushan','bhraman','sindoor','chakkar','nischay','nirdesh','pakshap','swabhav','pichhda','prakash','prerana','prishth','dhaaran','dharati','trishna','triveni','lallike','nainaki','urevalo','uddeshya','parchhai','chutkara','santulan','kvyapaar','samjhana','jhanjhna','dikhlana','prayatna','shikayat','vyavahar','shradhha','kartavya','siddhant','dakshina','bikharna','charitra','pahunche','suraksha','paryatan','taiyaari','tatkalin','ghinouna','facebook','protidin','porporle','sheshtai','parvachan','vichchhed','chopadiya','dhaaranaa','baksheesh','sangharsh','sanrachna','vyavastha','nishpatti','chikitsak','sindhutva','dhakelana','giraftaar','jolkhabar','dhanyavaad','niyantraan','pratishodh','swatantrata','pratiyogita','bondhuchara','pratispardha'],
-    'Telugu': ['mee','adi','ani','idi','ela','oka','emi','naa','tho','adu','ala','baa','edo','haa','ila','jey','ooh','ore','nenu','kuda','kani','idhi','inka','vala','ante','adhe','okka','aame','adhi','anta','arey','ayyo','levu','leka','sepu','tosi','aaga','aena','aina','aite','amma','atla','ayya','eyyi','gari','hari','inni','itla','jaya','kala','keka','kodi','mari','menu','memu','raja','sari','seva','tanu','kosam','kooda','manam','avunu','aithe','ledhu','tappa','vaadu','kotha','kante','vaadi','ninnu','emito','pedha','kadaa','nannu','adugu','baaga','cheri','daani','desam','dhani','intlo','meeku','meeru','nijam','nundi','okati','oorlo','paalu','paata','pilla','prema','sagam','saavu','seema','sodhi','sompu','tunne','abbay','anthe','asalu','bandi','bhalu','chesi','chota','frnds','gaali','goppa','ipudu','jeyya','kayya','lokam','okaru','osaru','pedda','randi','satya','sarle','srinu','thodu','tholi','vachi','valla','yenti','yokka','unnadu','unnaru','antaru','enduku','avarku','avanni','assalu','baadha','dagara','ichina','illalu','intiki','jarige','kaadhu','kaalam','kastha','manasu','mundhu','panulu','raadhu','rojuki','tosina','vaalla','aasalu','andaru','appudu','bagane','badulu','bayata','bhayya','bhoomi','cheyya','chinna','cinema','dhanni','eyyaru','eyyava','gelavu','guruvu','kavali','lopala','madham','modati','mohini','nenuve','perugu','thindi','vandha','vasthe','cheyali','andamga','kakunda','tappaka','kothaga','matrame','untaadu','istharu','chesina','peddaga','abaddam','maamulu','thakuva','vaadini','padithe','padandi','aasaalu','adugunu','chotuga','dengina','dengali','doshamu','endhuku','evariki','kathalu','kevalam','kshanam','maarina','nijamga','praanam','prajalu','rakanga','rakunda','saraina','sontham','vundali','adugulu','aduthey','dhayyam','gaalilu','gattiga','krishna','madyalo','nenunte','pillalu','rambabu','tarvata','lallike','nainaki','urevalo','mimmalni','avakasam','vachindi','kalisina','cheppanu','anukunta','cheyadam','veskondi','aadarana','avasaram','bhootulu','chudandi','daggarai','erripuka','manchiga','okkasari','paatedhi','padipoya','penchaga','pothunna','prakhyam','prakrame','prayanam','saradaga','sarvasva','vaallaki','vadalara','vishayam','dikhlana','prayatna','shikayat','vyavahar','shradhha','kartavya','siddhant','dakshina','bikharna','charitra','pahunche','suraksha','paryatan','taiyaari','tatkalin','ghinouna','chebuthe','cheyyaru','dhaaniki','jeyyaaru','nenulaki','peddamma','thakkuva','facebook','protidin','porporle','sheshtai','parigetti','vasthundi','chesinatu','avvakasam','kavalsina','raasindhi','antunnaru','cheyyandi','adigindhi','antunnadu','istharani','bauntundi','chinnappa','daridrapu','jeevitham','jolliestu','kalavatha','padutunna','palukutho','prakharam','preminchu','sakshanga','simhiyalu','vichitram','parvachan','vichchhed','chopadiya','dhaaranaa','baksheesh','sangharsh','sanrachna','vyavastha','nishpatti','chikitsak','sindhutva','dhakelana','giraftaar','jabardast','jarigindi','meerulaki','jolkhabar','theeskondi','isthunnaru','adugutundi','isthunnanu','brathakali','chesthunna','kaaranamga','prushottam','regincharu','sandarbham','dhanyavaad','niyantraan','pratishodh','isthunnaadu','vasthunnaru','telusthundi','aaparaadham','dorakatledu','jeevithamlo','marichipoya','paatinundhi','paristhithi','swatantrata','pratiyogita','gelusthunna','lekhinchuko','srimanthudu','thoguthundi','bondhuchara','chesthunnaru','kanipettandi','chepthunnadu','bhayapettina','emaipothunna','jaruguthundi','kanipincheru','modatinunchi','pratispardha','chesthunnaadu','anukuntunnanu','maatladuthunu','sambandhinche','choosthunnaadu','aalochinchandi'],
-    'Tamil': ['nan','ida','kai','vaa','kal','kol','kan','poy','men','mun','oru','sav','sol','svk','idu','por','pul','vil','aal','maa','nee','yen','avan','aval','illa','athu','podi','peru','vaai','vidu','seer','vitu','meel','ulla','mara','pada','aana','aaha','adhu','anbu','chol','eppo','etho','inge','ippa','ival','ivar','kaal','kana','koor','keer','naan','neer','nool','onru','osai','oyil','paal','paar','pasi','savu','seri','epdi','ithu','kann','koll','maan','meip','puvi','ravu','soll','than','thol','maip','aadu','aatu','avar','ayya','enna','enru','kelu','kodi','kudi','laam','siru','veru','intha','alavu','nalla','sollu','kooda','veesu','pottu','solla','aasai','nilai','porul','solli','aanal','avaru','boomi','engal','enjoy','indha','jolly','kalvi','kanda','kaval','kadal','koduk','kurai','maari','mahan','magan','manam','mella','mozhi','naadu','nalam','ninga','padal','padam','pagal','pothu','pudhu','raaja','ruchi','saara','sadai','samam','selai','surya','tamil','tarum','thaan','thala','endru','engum','ethai','payir','peyar','saami','sanda','there','illai','keezh','kuyil','pokku','ponnu','rasam','velai','vetti','aatam','avala','ennai','innum','kelvi','kovil','meeru','mokka','namma','naanu','neevu','paaru','summa','ungal','unmai','unnai','venum','yethu','neeyum','thaane','eppadi','aanaal','anuppu','thayir','unakku','enakku','suzhal','veettu','piragu','pakkam','selavu','thothu','umakku','vaikku','agalam','baasha','badhil','chithi','ippadi','ivarai','jeevan','kanavu','keerai','kollai','iyalbu','kangal','makkal','mazhai','moolai','mudhal','nanban','nandri','nangal','needhi','nirkka','parisu','poonga','raatri','sandai','thanni','kaalai','karuvi','kilavi','parvai','poonai','sakthi','seemai','selvam','thatha','ratham','thanga','tharum','thedum','irukku','iruvar','kaattu','kathai','kathir','konjam','maanam','maattu','neenga','oruvar','paavam','periya','panniru','thavira','irukkum','migavum','kevalam','vilakke','veliyil','petraar','poorvam','vayathu','vilakka','pattaam','athigam','amaippu','avanuga','azhudhu','ethuvum','ippavum','iyakkam','kadhali','kanneer','kavalai','kodutha','irunthu','karuthu','manaivi','marakka','munneer','odhunga','paartha','paarvai','payanam','sooriya','sundari','thangam','kadalai','kadavul','kurippu','magimai','manidha','maranam','rasathi','sappadu','thanjam','kodumai','puthusu','senthil','thanjai','avargal','enpathu','irukken','iruppin','ithuvum','mudiyum','naankal','nammaku','samayal','samayam','solriya','thamizh','unpathu','valathu','illaamal','tharuvom','illaatha','thiruppi','mukkiyam','kudumbam','parandhu','thiruthi','pannalam','purindhu','aruginra','pannunga','kalakkal','kavingar','kidaikka','ivarukku','manathil','mannavan','marundhu','puthumai','tharunam','ivalavil','kannamma','puthagam','thirudan','irupathu','kulithal','sandroru','thodarbu','yosithan','aarambam','avudaiya','kozhambu','marupadi','munnaadi','naanukku','sollunga','solvathu','tholaikka','aarambham','kaalathai','madhiyaal','nannaivar','sandhippu','thagappan','mazhaiyil','ragasiyam','kanavugal','magizhchi','avarkalai','engalukku','irunkiren','naanungal','periyavar','ungalukku','paravaigal','bhagavatha','kuzhandhai','olarvaatha','paarkalaam','makizhndhu','ratchasiya','tharavidai','vilaiyattu','azhaikanum','neengaluku','sugathiram','irukkirathu','padikkiraan','kudikkiraan','kottindraar','kodukkiraar','kodukkiraan','aarambhikka','nadanthathu','nedunthadhu','rajinikanth','marupadiyum','pudhupettai','neengalukku','puriyavillai','anaivarukkum','sooriyanaaru','yethentruyil','solvadhillai','kandupidippom','sagodharargal','virumbukirathu','kaattirukkirathu','koduthirukkiraan','maranthirukkirathu'],
-    'Marathi': ['ahe','ani','kal','nay','dil','kay','aai','aaj','aas','bag','dar','dev','dur','has','jag','jau','kha','lat','mol','vel','sap','sut','zep','mala','kasa','sang','kaay','kase','asla','khar','pani','dili','aala','nahi','kela','tula','gheu','yete','raha','asli','kaam','kahi','kele','karu','aho','ala','ali','ari','asa','asi','ata','aani','aata','amhi','ahaa','amba','amha','anek','baba','bahu','bala','bhat','bhas','chal','dada','fakt','gela','ghar','ghon','haat','hasu','hona','hoti','jaau','jaga','jeve','jhal','jati','kaal','keli','khan','khup','lage','lagn','lakh','maan','mann','mast','maza','mazi','nako','vaat','vish','puja','roka','sant','sarv','thav','ubha','saath','aaple','kaahi','sagla','majhe','kuthe','tyala','bagha','sagle','sangu','disat','ajab','akal','alag','amaa','amar','anga','anya','apla','aple','apli','apun','asud','aamhi','aapan','accha','agadi','ajuba','anand','ajaba','aatak','aakul','aanek','aarth','adhik','badal','baher','bahin','bhaag','bhaav','chhan','chaar','darja','dekhu','divas','dolya','durga','fayda','fokat','gaaon','gosht','gotra','jatee','jhali','kadha','kadun','kalat','kamal','karun','khara','maaji','maane','madat','majha','naahi','naate','navin','vadal','vakta','vhaag','vilas','chowk','latur','punha','paisa','prera','punah','punar','sapna','sathi','sathe','savin','thamb','thaya','upyog','vrudh','zepun','majhya','jhaale','shakto','milale','shakti','mhatla','aaplya','saathi','kuthhe','shikli','milala','tyacha','aaval','agale','aikya','ajali','ajata','amule','anang','anant','angat','anjay','artha','asach','ashat','asita','asudh','ayush','adhika','aamcha','aadhar','aagman','aanand','amucha','arthik','adbhut','aghadi','acchaa','bagait','balaka','bhaaji','bhojan','chaalo','dolyaa','geleli','ghevun','jeevan','keleli','laagal','lakhun','lavkar','mannat','mhanun','nantar','nantre','vachan','vaidya','vishay','vividh','mhanje','prayog','pushpa','rakhun','rustom','sanman','sathev','swagat','tvacha','tumhala','prashna','kuthlya','aamhala','rahasya','kaarane','amchya','anasha','anjali','anupam','apunle','arogya','asleel','asmita','asunuk','atavar','athava','athvan','abhyaas','amuchya','aakshar','aarthik','aananda','aadarsh','aabhaar','barobar','bhajani','bhraman','chukoon','darshan','hijaade','kashala','maulana','vinanti','waastaw','prerana','saangun','sahitya','sampati','sweekar','swataha','thambun','vaachan','watpade','sangitla','jhalayla','sangitli','shikshan','adarsha','adnyaat','alaukik','angikar','anubhav','anukram','anusara','anyavar','apeksha','apharan','aphilan','athavan','ayushya','aamuchya','abhimaan','abhipray','gadhadya','gandhiji','gharchya','jagachya','khushaal','lahanpan','wavering','randhawa','sangitale','dakhavata','alankaar','anarghya','anubhava','anukampa','anusaran','apekshit','aradhana','asankhya','aakrandan','aashirwad','aakrandit','abhipraya','bhavishya','karnyacha','mumbaichi','sangharsh','swatantra','vatavaran','apunyapas','asachahe','asudhahe','bhrunhatya','gadhvachya','instrument','mumbaichya','anyavastha','asudhasel','atishuddha','abhyaasacha','anusarkeli','asudhaslya','asunukasel','angikarkeli','arthashastra','asunukaslya','angikarkarun'],
-    'Urdu': ['mai','aap','hai','kya','yeh','par','kar','iss','aur','jis','bhi','tum','dil','sab','koi','kam','hun','rha','rhi','aag','aah','hum','log','maa','nah','umr','uss','woh','aib','nau','tha','aaj','asi','ata','ati','aye','bai','but','dar','din','dum','mein','hain','kiya','hota','agar','kaam','kuch','kyun','dard','wakt','acha','baar','sath','kisi','apna','bana','uska','unka','jana','phir','aana','apne','usne','unki','haan','pari','meri','mujh','raha','rahi','aage','aate','aati','aaya','aaye','adaa','faiz','haal','khul','laal','lafz','lage','lahu','liye','maan','maut','mere','munh','naam','nahi','paas','raah','raaz','rooh','saba','sada','soch','wafa','alag','ansu','asar','badi','chup','dafn','date','fana','fikr','gair','gham','ghar','gila','hala','ishq','jaan','jama','kash','laut','lime','lutf','maat','ruju','saja','shak','suna','zaat','adab','chot','daam','deta','husn','jurm','khat','maah','maal','aisa','aisi','ajab','alas','aman','ankh','bala','beta','bich','bura','daag','dagh','dukh','duri','yahan','kuchh','kaise','mujhe','dunya','tarah','dusra','karna','larka','larki','tumhe','taqat','sakta','sakti','maine','aapas','faqat','fikar','haath','habli','hafiz','havaa','khush','lagta','lekin','milti','naqsh','pahle','pehle','rooth','sapna','shauq','subah','udhar','umeed','waada','aankh','afsos','ajeeb','aksar','alfaz','ambar','aqsar','araam','azaad','bahar','bahut','chand','dilon','ehsas','hadsa','irada','jahan','judai','karam','khwab','laund','nahin','naseb','nasib','sabab','sahib','sajde','shair','sunte','surat','udasi','ujala','zeest','zuban','afwah','anban','arman','aurat','baita','dafan','daman','dinon','diqat','firqa','garaj','gusht','irade','jaaiz','kalma','khauf','khayr','likha','aapna','achha','adaab','aisay','akela','akhir','ameer','anmol','asman','asrar','ateet','atish','awaaz','bacha','badla','badle','bahot','behad','belam','betab','bijli','burai','burna','dagha','dekha','dosti','bilkul','zaroor','aakhir','aaraam','ghazal','haafiz','haasil','hadees','halaat','haseen','khwaab','maanta','maarna','nafrat','naseeb','piyaar','qudrat','tanhaa','afwaah','akhiri','baithe','bayaan','bedaad','doosri','faasla','haazir','haveli','iltija','inteha','khabar','khushi','khyaal','maamla','mayoos','munsif','mutaal','napaak','qusoor','siyaah','sunkar','taaluq','thakan','tufaan','ummeed','aasman','aayaat','afsona','aftaab','alfaaz','almari','aqwaal','aziyat','bahana','bhookh','dulhan','duniya','ehsaas','hazaar','hijaab','imkaan','ilaahi','insaan','jalebi','jawaab','khabri','mareez','masail','mehfil','moorat','muflis','mutalq','aapnay','adhuri','ajnabi','alvida','ankhon','anjaan','anjali','asmani','astana','bai-ji','bejaan','bemari','benaam','beshak','beshaq','bewafa','bidaar','bidesi','bilakh','chehra','chhota','chhoti','chumma','dekhna','dekhti','dekhte','doston','hairaan','mehmaan','musafir','sunehri','talaash','tehzeeb','zamaana','zindagi','amaanat','amreeka','aurtain','bewafai','faryaad','haaziri','ijaazat','mojaiza','munasib','mushkil','musibat','raushan','riwayat','safeena','shaukat','tasweer','aanchal','adaalat','afwaahe','akhbari','ambwari','anjuman','baghair','chandni','ijtimaa','irshaad','masroof','mehkuma','munafiq','aitbaar','badnaam','badnami','barsaat','bekarar','bekhauf','bekhudi','bemisal','beqarar','burhapa','burhapy','charagh','chashma','chubhti','daikhna','darogha','dilruba','aazmaish','mehrbani','mulaqaat','nazaakat','paimaane','sharafat','behisaab','imtihaan','mohabbat','naqaabil','pakeezah','pareshan','samandar','tamaasha','tanaffur','tashreef','baahisht','charaagh','intezaar','awarapan','bahut-sa','bahot hi','bardasht','bekhabar','beniyaad','beparwah','darkhast','darwaaza','khwaahish','maashooqa','nigaahein','intikhaab','khairiyat','badmaashi','hoshyaari','istiqlaal','khazaanaa','asaathiya','badi waqt','beikhtiar','chhoti si','darmiyaan','dekha hua','dilrubaai','ashiyaanaa','aisi tarah','bahut zada','but-parast','dard-e-dil','dekhti hui','dil-e-wafa','dil-o-jaan','dukh-e-dil','asar-e-wafa','ata-ul-faiz','awaaz-e-dil','chhoti umar','dafa-e-ishq','dard-e-ishq','dard-e-wafa','dil-e-nazuk','dukh-e-wafa','badi mushkil','bahut zaruri','chhoti ulfat','dard-e-sitam','dukh-e-jahan','bahut zaroori','bilakh-bilakh','dekhte-dekhte','dekhte-dekhti','asar-e-mehboob','bahut pyaar se','dekhte-dekhtay','darkhast-e-ishq','dil-e-nazuk-e-ishq'],
-    'Gujarati': ['ema','kya','che','ane','kem','aap','hoi','thi','kai','maj','shu','cho','koi','laj','nai','nav','oli','evu','naj','nik','por','pun','roj','ame','are','ave','bag','bol','evi','tel','des','han','hun','mel','vat','vay','kaj','mul','sau','tame','chhu','etla','kari','chho','rahe','vaat','hova','natu','maal','karu','hase','chhe','game','hoyo','kaho','kare','raha','haru','bura','besu','choo','jovu','kaya','kevi','loko','mari','masu','navu','puja','raas','rite','ruso','thay','toon','vato','janu','joya','kajo','karo','lakh','laav','lage','maja','mast','moti','motu','naam','phal','pote','pray','rato','shak','sukh','vadh','vish','ajab','amne','biji','etle','javu','lovu','rath','sath','seva','shri','vari','vaid','vhal','bhir','dhan','divs','evan','halt','jova','kone','mane','nava','path','same','sane','soni','tale','varg','agad','ekta','faje','feni','gidh','javi','koni','loha','mate','mine','mota','nahi','nath','vayu','maate','shako','bhale','ghana','ramat','thase','koine','sharu','badhu','bhaji','bolvu','dabbo','dheku','jamva','kadhi','karvu','kashu','ketlu','kharu','laadu','mathi','methi','mithu','nathi','phodi','pishi','saaru','Shano','swaad','upmaa','vagar','vandu','vilay','aamka','aapvu','aathu','aavso','janya','kahvu','lakhu','lahan','lapet','palav','pujar','puvar','ratri','vahen','badha','bagay','darni','divas','jaher','jarur','jyare','kadak','kahee','kevay','laher','nathu','rojnu','svadu','vagad','avtar','bhedu','botad','chana','desma','dikri','jagma','khena','nakko','nirav','pauna','pehlu','rashi','ratan','rotlo','sovak','vikas','amare','desni','faraj','halol','india','jaman','kamna','lasan','lokta','melaa','naram','palan','rasoi','ratva','sompu','vadhu','tamara','khabar','sharab','bakadu','kariye','naathi','paneer','pranam','vachan','varsad','abhaag','ishwar','karine','khichu','maarnu','nishan','rajkot','salaah','swaadu','tempik','vanday','vilamb','aadhik','aaviye','apnavu','asarvu','damani','dhvani','dhokla','nimitt','nirnay','oldage','padavo','pakshi','sarkar','wisdom','abhyas','agrahy','bhaili','bhurak','chodvu','dagmag','kutchh','mariyu','pragat','shriji','vichar','akhand','bagdum','dhokra','divase','jagran','sanket','shakha','soorna','trance','vishay','bharela','chokari','dhandho','khandvi','khichdi','pragati','vadhare','vargani','vartavo','wartime','kharaab','kharedi','mysooru','navsari','shikhar','thaatha','vandana','vartman','vichaar','vitaran','vrushti','aayojit','ishware','mathama','pehchan','shaamak','vadhana','vartalo','village','adhunik','devgadh','hanuman','panchma','aradhya','baharva','itihaas','marvaad','mulakat','nishtha','sukhkar','vicharo','vikasak','bhakhari','dandvatu','nishaani','samajhvu','varshaam','aksharvo','khichadi','vicharan','dhandhal','suvichar','vartaman','villayat','avinashi','prayogik','varganim','bhavishya','ghamadhna','shyamahoo','ladakvaya','mazamaaze','vicharano','anandkand','parikrama','savaarish','sukhakari','salaamati','punyannand','icchapurti','punyabhumi','dhandhalya','nirikshana','prernapurna','khushamadee','punyabhoomi','shubharambh','randhikkaran'],
-    'Kannada': ['idu','adu','ene','illa','mele','eega','nivu','hege','beku','hosa','yenu','yava','ella','naanu','nimma','yaava','yaake','neenu','avaru','nimge','maadi','tumba','haage','enadu','yella','haagu','neeve','yaaru','namma','neevu','saaku','naavu','aagide','namage','ellide','ellavu','madhya','madhye','barutte','anisutte','maadiddiya'],
-    'Malayalam': ['ini','nee','oru','pal','kai','njan','illa','aara','avan','athu','enne','ende','ente','aaru','undu','aanu','avar','entha','enthu','aranu','venam','athil','koodi','ningal','thanne','ingane','kaanam','aarude','karuthi','sahayam','cheiythu','koduthal','cheyyuka','enthelum','kudumbam','prashnam','pattonnu','ningalude','arikkilla','irikkanam','santhosham','aayirikkanam','kandupidichu','samsarikkunnu','paranjirunnilla','cheiythirunnilla'],
-    'Punjabi': ['eta','ahe','eti','hai','pai','hei','att','cha','dil','fer','hun','jee','nhi','par','vai','bas','hoi','aan','nai','eho','hor','rab','deo','ice','ujj','tume','kaun','heba','kari','kahi','agge','assi','bhut','boli','ghar','haan','hass','hoya','jatt','kadd','khad','kujh','kuri','mann','menu','mera','meri','nahi','vali','vich','teri','wand','chaa','dass','daru','gedi','rabb','ankh','door','ishq','jeha','boot','hoye','paro','brar','dayi','kamb','patha','bhala','etiki','bhalo','balle','chaan','cheez','dhyan','ditta','fikar','gabru','haasa','kammi','kardi','khani','kinni','kitta','laggi','laina','lambi','mainu','majaa','mithi','vadde','saanu','thodi','turdi','janda','haigi','dassi','hunda','bulli','daaru','disdi','sajna','akhan','hoigi','kinna','paake','vekhi','bacha','billo','chete','chhad','hassi','lagge','maape','hunde','boldi','chhan','dekho','heavy','karan','lutti','paiye','vaari','bhabi','dasso','dukhi','gaana','kemiti','hauchi','hebaku','tumaku','parilu','aayaan','dekhdi','ghumdi','hassdi','khaana','luteya','nakhra','punjab','vekhna','tuhada','painde','changa','brinda','channa','mainnu','tuhanu','bhutta','changi','jeonde','kacche','khushi','aashiq','bhangra','charhda','chhutti','balliye','teriyan','punjabi','valiyan','vanjhali','vaddeyan','mutiyaran'],
-    'Odia': ['aau','ama','hei','jau','asi','hau','jiu','oka','aru','asa','odi','ori','naa','sei','aap','abe','aha','aja','ala','api','ari','aum','bapa','asti','boli','asta','ithi','pain','sabu','tame','tora','aaji','anna','bapu','bati','khia','loka','mane','jiba','mote','odia','thae','aama','hela','siba','nahi','suna','aaja','aala','aame','abhi','alag','alai','amar','anya','apye','atma','bhala','chhai','odhia','chali','poila','naahi','bhalo','sathi','thili','amaku','chhua','dusta','thata','amara','artha','asiba','jiban','aapna','achha','adugu','ahare','ajeya','alada','amate','anand','aneka','anila','arati','asana','chhata','jeeban','paithi','sasthi','bandha','lagila','asuchi','bhaaji','kanhei','rahilu','bhanga','hauchi','karibe','thatha','rauchi','aitare','alaita','alpana','amruta','ananta','ananya','anesha','aniket','animan','anyata','apiuna','apurna','aputra','arogya','asatya','asmita','asurya','avidya','dekhilu','karuchi','bihanga','dekhela','rakhiba','boluchi','chadhei','rahuchi','adbhuta','alaakhi','alahasa','alaukik','alokika','aniyata','anubhav','anusara','anupama','ashubha','asuddha','astitva','aumkara','avastha','avinita','avirati','avyakta','alaghana','alochana','aneshana','anindita','aniruddh','anyatara','apavarga','aradhana','atmatapa','aupasana','annapurna','jaukanthi','anukarana','anusarana','apaharana','aparajita','apasiddha','atmajnana','atmavidya','aupadhika','anantatapa','anekanetra','aneshapana','apasavadhi','asmitatapa','asuravrata','atmavritti','anantajnana','anilashakti','anupamaguni','atmanishtha','avasthapana','aviratatapa','avyaktatapa','animanishtha','apurnashakti','asmitavritti','aniruddhatapa','aviratavritti','avyaktavritti','anubhavashakti','aniruddhashakti','aniruddhavritti']
-}
-
-def Custom_language_detection(ytcomment):
-    """
-    Author: Jagadeesan Rajalakshmi Vellaichamy
-    Reviewer: Dani Papamaximou
-    Created At: 20/08/2023
-    Description: This function uses custom words from regional languages and find exact roman script of indian languages
-    :param ytcomment: data frame
-    :type ytcomment: dataframe
-    :return: dataframe
-    """
-    for language, words in words_to_check.items():
-        for word in words:
-            if word in ytcomment['comment_textDisplay']:
-                ytcomment['language'] = language
-                return ytcomment
-    return ytcomment
-###############################################################################################
-#Step14: Additional iteration in updating the language code of Indian regional languages based on step13
-#Languages list which are considered for analysis
-Language_lookup = {
-    'language': ['English', 'Hindi', 'Bengali', 'Telugu', 'Tamil', 'Marathi', 'Urdu', 'Gujarati', 'Kannada', 'Malayalam', 'Punjabi', 'Odia'],
-    'lang_code': ['en', 'hi', 'bn', 'te', 'ta', 'mr', 'ur', 'gu', 'kn', 'ml', 'pa', 'or']
-}
-Language_lookup = pd.DataFrame(Language_lookup)
-def Custom_language_code_mapping(ytcomment):
-    """
-    Author: Jagadeesan Rajalakshmi Vellaichamy
-    Reviewer: Dani Papamaximou
-    Created At: 20/08/2023
-    Description: This function updates the language code based on revised language
-    :param ytcomment: data frame
-    :type ytcomment: data frame
-    :return: data frame
-    """
-    language = ytcomment['language']
-    if language in Language_lookup['language'].tolist():
-        lang_code = Language_lookup[Language_lookup['language'] == language]['lang_code'].values[0]
-        ytcomment['language_code'] = lang_code
-    return ytcomment
-################################################################################################
-#Step15: convert english based comments to lowercase
-def English_comments_to_lower(sourcedata, columnname):
-    """
-    Author: Jagadeesan Rajalakshmi Vellaichamy
-    Reviewer: Dani Papamaximou
-    Created At: 20/08/2023
-    Description: This function converts english comments to lower case
-    :param sourcedata: The source data frame
-    :type sourcedata: data frame
-    :param columnname: The comments text column
-    :type columnname: str
-    :return: data frame
-    """
-    sourcedata[columnname] = sourcedata[columnname].str.lower()
-    return sourcedata
-################################################################################################
-#Step16: Identify the stop words and remove
-def Stopwords_Profanity_detection_removal(data):
-    """
-    Author: Jagadeesan Rajalakshmi Vellaichamy
-    Reviewer: Dani Papamaximou
-    Created At: 20/08/2023
-    Description: This function removes the stop words from comments
-    :param columnname: The comments text column
-    :type columnname: str
-    :return: str
-    """
-    nltk.download('stopwords')
-    nltk.download('wordnet')
-    stop_words = stopwords.words('english')
-    #Hindi, tamil, telugu, malayalam, kannada, marathi, bengali, gujarati, odia, punjabi, urdu
-    custom_profanitywords = ['आंड़', 'आंड', 'आँड', 'बहनचोद', 'बेहेनचोद', 'भेनचोद', 'बकचोद', 'बकचोदी', 'बेवड़ा', 'बेवड़े', 'बेवकूफ', 'भड़ुआ', 'भड़वा', 'भोसड़ा', 'भोसड़ीके', 'भोसड़ीकी', 'भोसड़ीवाला', 'भोसड़ीवाले', 'बब्बे', 'बूबे', 'बुर', 'चरसी', 'चूचे', 'चूची', 'चुची', 'चोद', 'चुदने', 'चुदवा', 'चुदवाने', 'चाट', 'चूत', 'चूतिया', 'चुटिया', 'चूतिये', 'दलाल', 'दलले', 'फट्टू', 'गधा', 'गधे', 'गधालंड', 'गांड', 'गांडू', 'गंडफट', 'गंडिया', 'गंडिये', 'गू', 'गोटे', 'हग', 'हग्गू', 'हगने', 'हरामी', 'हरामजादा', 'हरामज़ादा', 'हरामजादे', 'हरामज़ादे', 'हरामखोर', 'झाट', 'झाटू', 'कुत्ता', 'कुत्ते', 'कुतिया', 'कुत्ती', 'लेंडी', 'लोड़े', 'लौड़े', 'लौड़ा', 'लोड़ा', 'लौडा', 'लिंग', 'लोडा', 'लोडे', 'लंड', 'लौंडा', 'लौंडे', 'लौंडी', 'लौंडिया', 'लुल्ली', 'मार', 'मारो', 'मारूंगा', 'मादरचोद', 'मादरचूत', 'मादरचुत', 'मम्मे', 'मूत', 'मुत', 'मूतने', 'मुतने', 'मूठ', 'मुठ', 'नुननी', 'नुननु', 'पाजी', 'पेसाब', 'पेशाब', 'पिल्ला', 'पिल्ले', 'पिसाब',
-                        'haraamzyaada', 'haraamjaada', 'haraamjaade', 'haraamzaade', 'bhosdiwala', 'bhosdiwale', 'haramzyada', 'haraamkhor', 'madarchodd', 'madarchood', 'madarchoot', 'bahenchod', 'behenchod', 'bhenchodd', 'bhonsdike', 'chudwaane', 'gadhalund', 'haramjada', 'haramkhor', 'madarchod', 'madarchut', 'porkistan', 'bhenchod', 'bakchodd', 'bakchodi', 'bevakoof', 'bewakoof', 'bhosdike', 'bhosdiki', 'chudwane', 'laundiya', 'loundiya', 'bakchod', 'bevkoof', 'bewkoof', 'bhaduaa', 'bhadvaa', 'bhadwaa', 'bhosada', 'bhosdaa', 'chooche', 'choochi', 'chudney', 'chudwaa', 'chutiya', 'chutiye', 'gandfat', 'gandfut', 'gandiya', 'gandiye', 'kuttiya', 'laundey', 'marunga', 'peshaab', 'bevdey', 'bewday', 'bevkuf', 'bewkuf', 'bhadua', 'bhadva', 'bhadwa', 'bhosda', 'babbey', 'charsi', 'chuchi', 'chudne', 'chudwa', 'chutia', 'dalaal', 'dalley', 'hagney', 'harami', 'jhaatu', 'kuttey', 'kutiya', 'laudey', 'launda', 'lounde', 'laundi', 'loundi', 'mammey', 'mootne', 'pesaab', 'peshab', 'pillay', 'pilley', 'pisaab', 'bevda', 'bewda', 'babbe', 'bubey', 'buurr', 'chhod', 'chodd', 'chaat', 'choot', 'chute', 'dalal', 'dalle', 'fattu', 'gadha', 'gadhe', 'gaand', 'gandu', 'gotey', 'gotte', 'haggu', 'hagne', 'jhaat', 'jhatu', 'kutta', 'kutte', 'kutia', 'kutti', 'landi', 'landy', 'laude', 'laura', 'lauda', 'lulli', 'mamme', 'mutne', 'mooth', 'nunni', 'nunnu', 'paaji', 'pesab', 'pilla', 'pille', 'pisab', 'pkmkb', 'raand', 'randi', 'randy', 'tatte', 'tatti', 'tatty',
-                        'otha', 'punda', 'poolu', 'koothi', 'thevudiya', 'thevdiya', 'oombu', 'oombhu', 'sunni', 'sappi', 'omala', 'thuma', 'baadu', 'lavada', 'muttal', 'thayoli', 'suthu', 'poda',
-                        'dengu', 'bosudi', 'modda', 'gudda', 'pooku', 'lanja', 'erugu', 'lafoot', 'nihar', 'sulli', 'sachinoda', 'vedhava', 'vattakai'
-                        'poore', 'maire', 'kunne', 'mairu', 'kunna', 'appikunna', 'beejam', 'chandi', 'dushtan', 'mandu', 'masa', 'mola','myir', 'myre', 'ookki', 'parii','pooru', 'theetam', 'thendi',
-                        'baand', 'batti', 'benne', 'betta', 'bidde', 'bidko', 'bitti', 'bitri', 'blade', 'bolsu', 'chela', 'chool', 'dabba', 'dengu', 'devru', 'diggu', 'dumki', 'gaala', 'gedde', 'goota', 'guggu', 'guldu', 'gundu', 'hadsu', 'hakki', 'hudgi', 'jujbi', 'juttu', 'kaadu', 'kaage', 'kadar', 'kaddi', 'katte', 'kirik', 'kitgo', 'kokke', 'kolte', 'koole', 'kothi', 'kotta', 'kudmi', 'kuiey', 'lodde', 'loosu', 'mabbu', 'macha', 'machi', 'magne', 'maama', 'maamu', 'maava', 'malli', 'manga', 'manne', 'maska', 'medam', 'minda', 'mollu', 'motte', 'nakra', 'nekku', 'othla', 'panta', 'pekra', 'peltu', 'pirki', 'porki', 'pungi', 'ragle', 'saaru', 'scope', 'suvar', 'tadku', 'tagdu', 'taklu', 'tigne', 'tikla', 'tiklu', 'tooku', 'tunne', 'udees', 'aandal', 'achchu', 'adjust', 'bachha', 'batthi', 'bejaan', 'bombat', 'bomman', 'burdey', 'chamak', 'chatri', 'chatta', 'chilre', 'chindi', 'chingi', 'chinki', 'chippu', 'chombu', 'chumma', 'cracku', 'dagaar', 'damaar', 'dingri', 'draabe', 'enamma', 'gaandu', 'gubaal', 'jakaas', 'kachgo', 'kajoor', 'kantri', 'karaab', 'kogile', 'kuroop', 'maanja', 'makkar', 'mangya', 'matash', 'meeter', 'mentlu', 'mindri', 'paakda', 'pantar', 'papplu', 'pigure', 'pinish', 'pyaade', 'sakkat', 'shaata', 'shanta', 'suthgo', 'syaata', 'thupuk', 'tholdu', 'thordu', 'thullu', 'udaisu', 'adklasi', 'ammanni', 'baandli', 'bevarsi', 'bindaas', 'chamcha', 'chameli', 'chamman', 'chappar', 'chootya', 'dabaisu', 'darbesi', 'dichchi', 'ethakko', 'gaampar', 'gamaara', 'guraisu', 'hanumya', 'jamaisu', 'kachchu', 'kalakar', 'kalchko', 'kharaab', 'lagaisu', 'machchu', 'muchchu', 'obiraya', 'pataisu', 'piklati', 'pulchar', 'randike', 'stepney', 'supaari', 'teertha', 'jaiannu', 'adumkoli', 'atkaisko', 'badetade', 'bendethu', 'bolimaga', 'chinaali', 'chinalke', 'hebbettu', 'jhinchak', 'mundaisu', 'naamarda', 'narpetla', 'nigrbeda', 'ninnajji', 'petromax', 'saamaanu', 'turemane', 'choobidu', 'naamaidu', 'tikamaka', 'baddimaga', 'chitranna', 'edbidangi', 'fountainu', 'gaanchali', 'hodskonda', 'kittogiro', 'ninnakkan', 'ninnamman', 'soolemaga', 'guldukhan', 'kambiensu', 'ladyrambo', 'namhudgru', 'sodabuddi', 'tikakobbu', 'dandapinda', 'khatarnaak'
-                        'लंड', 'लौडा', 'लवडा', 'आंड', 'गोटी', 'पुच्ची', 'भोसडा', 'चूत', 'फोदरी', 'फोदी', 'भोक', 'गांड', 'बोचा','झवणे','चोदणे', 'घालणे', 'टाकणे', 'मुतणे', 'उठणे', 'रांड', 'वेश्या', 'छिनाल', 'गांडू', 'चुतिया','चुतिये','मादरचोद','भिकारचोट','रांडेच्या',
-                        'achuda','bara','bhag', 'bhoda', 'chood', 'chudi', 'dhon', 'putki',
-                        'babhuchak', 'bhadvo', 'bhopa', 'bobla', 'bosrina', 'buckwass', 'budhalal','chod', 'chodhru', 'chodkanya', 'chodu', 'chutiya', 'fattu', 'gando', 'ghelchoydi','hopa', 'kutari', 'loda', 'luli', 'namuno', 'puti', 'pikina', 'raand', 'sandas',
-                        'banda', 'bedhei', 'biaa', 'bujula', 'chhodi', 'dana', 'kukura',
-                        'kuti', 'haramjada', 'maachaud','bhander', 'lund', 'doodi', 'phudee', 'rami', 'budh', 'gaandu', 'rundi',
-                        'دلّ', 'حرامی', 'مادر چود', 'چوتیا', 'پُھدو', 'كتی', 'رنڈی', 'جھلّے', 'جھاواں', 'harami', 'madarchod', 'zaleel', 'chutia', 'lora', 'phuddu', 'salaay', 'muthar','lanti', 'khinzir', 'nagora'
-                        ]
-
-    lang = ['hi', 'bn', 'te', 'mr', 'ta', 'ur', 'gu', 'kn', 'ml', 'pa']
-    YT_comments = []
-
-    for index, row in data.iterrows():
-        language_code = row['language_code']
-
-        # Add stopwords for Indic languages
-        if language_code in lang:
-            # Hindi, Tamil, bengali, Telugu, Marathi, Gujarati, malayalam, Kannada, urdu,
-            indic_stopwords = ['और','के','का','की','को','है','एक','में','से','हैं','कर','पर','हो','इस','था','कि','लिए','या','होता','कुछ','करने','वाले','करते','हुए','उनके','उनका','उनकी','करता','इसके','इसका','इसकी','जैसे','कुल','अगर','हम','हमारे','आप','आपके','अपने','अपना','अपनी','आज','कल','कभी','अब','तब','इतना','बहुत','क्योंकि','क्या','कितना','कैसे','जब','तक','जिसके','जिसका','जिसकी','जिसको','जैसा','जिनका','जिनकी','जिनको','जिन्होंने','वर्ग','समय','साथ','पूरा','फिर','उसका','उसकी','उसके','उनको','किसी','वह','वही','वहाँ','वहां','वाली','वाला','वालों','वालीयों','स्वयं'
-                                'aur','ke','ka','kee','ko','hai','ek','mein','se','hain','kar','par','ho','is','tha','ki','lie','ya','hota','kuchh','karane','vaale','karate','hue','unake','unaka','unakee','karata','isake','isaka','isakee','jaise','kul','agar','ham','hamaare','aap','aapake','apane','apana','apanee','aaj','kal','kabhee','ab','tab','itana','bahut','kyonki','kya','kitana','kaise','jab','tak','jisake','jisaka','jisakee','jisako','jaisa','jinaka','jinakee','jinako','jinhonne','varg','samay','saath','poora','phir','usaka','usakee','usake','unako','kisee','vah','vahee','vahaan','vaalee','vaala','vaalon','vaaleeyon','svayan',
-                                'மேலும்','அந்த','இது','அது','இந்த','அந்தக்','ஆனால்','இதன்','அதன்','என்று','இப்போது','இப்போதான்','பின்னர்','பின்','அதில்','இதில்',
-                                'Melum','anta','itu','atu','inta','antak','itaṉ','ataṉ','eṉṟu','ippotu','ippotaṉ','piṉṉar',
-                                'অতএব','অথচ','অথবা','অনুযায়ী','অনেক','অনেকে','অনেকেই','অন্তত','অবধি','অবশ্য','আগামী','আগে','আগেই','আছে','আজ','আবার','আমরা','আমাদের','আমার','আমি','আর','আরও','ই','ইত্যাদি','উত্তর','উপর','উপরে','উত্তরে','উনি','ও','ওই','ওর','ওরা','ওদের','ওহ','ওহে','কখনও','করতে','করবে','করবেন','করা','করাই','করায়','করি','করিতে','করিয়া','করে','করেই','করেছিলেন','করেছে','করেছেন','করেন','কাউকে','কাছ','কাছে','কাজ','কাজে','কারও','কিংবা','কিছু','কিছুই','কিন্তু','কী','কে','কেউ','কেখা','কেন','কোটি','কোন','কোনও','কোনো','ক্ষেত্রে','খুব','গিয়ে','গিয়েছে','গিয়েছেন','গুলি','গেছে','গেছেন','গোটা','চেয়ে','ছাড়া','ছাড়াও','ছিল','ছিলেন','জন','জনগণ','জন্য','জন্যওজে','জানা','ঠিক','তখন','তবু','তবে','তা',
-                                'তাই','তাও','তাকে','তাতে','তাদের','তার','তারপর','তারা','তারৈ','তাহলে','তাহা','তাহাতে','তাহাতেই','তিনি','তিনিও','তুমি','তুলে','তেমন','তো','তোমার','থাকবে','থাকবেন','থাকা','থাকায়','থাকে','থাকেন','থেকে','থেকেই','থেকেও','দিকে','দিতে','দিয়ে','দিয়েছে','দিয়েছেন','দিলেন','দু','দুটি','দুটো','দেওয়া','দেওয়ার','দেওয়ায়','দেখতে','দেখতেই','দেখা','দেখে','দেন','দেয়','দেয়া','দেয়ার','দেয়ায়','দেয়ে','দ্বারা','ধরা','ধরে','নতুন','নয়','না','নাই','নাকি','নাগাদ','নানা','নিজে','নিজেই','নিজেদের','নিজের','নিজেস্থ','নির্দিষ্ট','নেওয়া','নেওয়ার','নেওয়ায়','নয়','পক্ষে','পর','পরে','পরেই','পর্যন্ত','পাওয়া','পারে','পি','পেয়ে','পৌঁছে','প্রতি','প্রথম','প্রভৃতি','প্রাথমিক','প্রায়','প্রযন্ত','প্রায়োজন','প্রায়োজনে','প্রয়োজনীয়','প্রায়োজনীয়তা','প্রয়োজনীয়ভাবে','প্রায়োজনীয়মত','প্রায়োজনীয়৷','ফলে','ফিরে','ফের','বক্তব্য','বদলে',
-                                'বন','বরং','বলতে','বলতেই','বলা','বলে','বলেই','বসে','বহু','বা','বাদে','বার','বিএম','বিশেষ','বিষয়টি','বেশ','বেশি','ব্যবহার','ব্যাপারে','ভাবে','মতো','মতোই','মধ্যভাগে','মধ্যে','মধ্যেই','মধ্যেও','মনে','মাধ্যমে','মাত্র','মোট','মোটেই','যখন','যত','যতটুকু','যতেহে','যা','যাঁর','যাঁরা','যাওয়া','যাওয়ার','যাওয়ায়','যায়','যাকে','যাতে','যাদের','যান','যাবে','যায়','যার','যারা','যে','যেখানে','যেতে','যেন','যেমন','র','রকম','রয়েছে','রাখা','রেখে','শুধু','শুরু','সঙ্গে','সঙ্গেও','সমস্ত','সময়','সব','সবার','সহ','সহিত','সাধারণ','সাথে','সুতরাং','সে','সেই','সেখান','সেখানে','সেটা','সেটি','সেটিই','সেটিও','সেটিওও','সেটিকে',
-                                'అందు','అందుకు','అందున','అందులో','అందులోని','అంత','అంతకంటే','అంతకు','అంతలో','అంతలోని','అనంతర','అని','అనిపిస్తుంది','అను','అనుకుంటుంది','అనుకుంటూ','అనుమానం','అనుమానిస్తుంది','అనుమానిస్తున్నారు','అనుమానిస్తున్నాయి','అనుమానిస్తూ','అన్న','అన్ని','అప్పుడు','అప్పుడే','అయితే','అలా','అలాగే','అందు',
-                                'अधिक', 'अनेक', 'अशी', 'असलयाचे', 'असलेल्या', 'असा', 'असून', 'असे', 'आज', 'आणि', 'आता', 'आपल्या', 'आला', 'आली', 'आले', 'आहे', 'आहेत', 'एक', 'एका', 'कमी', 'करणयात', 'करून', 'का', 'काम', 'काय', 'काही', 'किवा', 'की', 'केला', 'केली', 'केले', 'कोटी', 'गेल्या', 'घेऊन', 'जात', 'झाला', 'झाली', 'झाले', 'झालेल्या', 'टा', 'डॉ', 'तर', 'तरी', 'तसेच', 'ता', 'ती', 'तीन', 'ते', 'तो', 'त्या', 'त्याचा', 'त्याची', 'त्याच्या', 'त्याना', 'त्यानी', 'त्यामुळे', 'त्री', 'दिली', 'दोन', 'न', 'नाही', 'निर्ण्य', 'पण', 'पम', 'परयतन', 'पाटील', 'म', 'मात्र', 'माहिती', 'मी', 'मुबी', 'म्हणजे', 'म्हणाले', 'म्हणून', 'या', 'याचा', 'याची', 'याच्या', 'याना', 'यानी', 'येणार', 'येत', 'येथील', 'येथे', 'लाख', 'व', 'व्यकत', 'सर्व', 'सागित्ले', 'सुरू', 'हजार', 'हा', 'ही', 'हे', 'होणार', 'होत', 'होता', 'होती', 'होते',
-                                'અંત', 'અને', 'અબજ', 'અમે', 'અરે', 'અલગ', 'અસર', 'આગળ', 'આજે', 'આપે', 'આપો', 'આવા', 'આવે', 'આવો', 'ઇડી', 'ઉપર', 'એઆર', 'એએફ', 'એઓઓ', 'એમન', 'ઓછા', 'કંઈ', 'કદર', 'કમન', 'કયુ', 'કરી', 'કરે', 'કરો', 'કહે', 'કહો', 'કામ', 'કીઓ', 'કુલ', 'કેન', 'કેમ', 'કેસ', 'કોઈ', 'કોણ', 'કોન', 'કોમ', 'ખાણ', 'ખાસ', 'ખૂબ', 'ગમે', 'ગયા', 'ગયો', 'ગોળ', 'ઘણા', 'ઘણી', 'ચાર', 'ચાલ', 'છું', 'જમા', 'જાઓ', 'જાય', 'જીઇ', 'જીન', 'જીસ', 'જુએ', 'જુઓ', 'જૂથ', 'જેમ', 'જોઈ', 'ટીપ', 'ટેવ', 'ટોચ', 'ઠીક', 'ડોન', 'તમે', 'તરત', 'તરફ', 'તું', 'તેઓ', 'તેમ', 'તેર', 'થાય', 'દૂર', 'ધૂન', 'નકલ', 'નથી', 'નરક', 'નવી', 'નામ', 'પછી', 'પીઈ', 'પીઠ', 'ફરી', 'ફાઈ', 'ફિફ', 'બંધ', 'બધા', 'બની', 'બને', 'બાર', 'બિન', 'બિલ', 'બેઉ', 'ભરો', 'ભાગ', 'ભેટ', 'મદદ',
-                                'મને', 'મફત', 'મળી', 'મળે', 'માં', 'માફ', 'માલ', 'મિલ', 'મીન', 'યીહ', 'રકમ', 'રહી', 'રેફ', 'લાલ', 'વગર', 'વધુ', 'વલણ', 'વહુ', 'વળે', 'વળો', 'વીસ', 'વેબ', 'શરૂ', 'શું', 'શેડ', 'શેલ', 'શોધ', 'સદા', 'સાગ', 'સાઠ', 'સાત', 'સ્વ', 'હજુ', 'હતા', 'હતી', 'હવે', 'હશે', 'હાય', 'હું', 'હુઈ', 'હેડ', 'હોઈ', 'હોત', 'તેથી', 'અંદર', 'અગાઉ', 'અડધા', 'અથવા', 'અન્ય', 'અમને', 'અર્થ', 'અવસા', 'અહીં', 'આઈડી', 'આપણો', 'આપેલ', 'આભાર', 'ઉચ્ચ', 'એંસી', 'એકદમ', 'એકલા', 'એટલે', 'એનસી', 'એફએફ', 'એમકે', 'એમપી', 'એમવી', 'એમસી', 'એલવી', 'ઓછું', 'ઓરડો', 'કંઈક', 'કદાચ', 'કરશે', 'કલાક', 'કાયમ', 'કારણ', 'કૃપા', 'કેવી', 'કોઈક', 'કોરે', 'ખાલી', 'ખુલે', 'ગર્વ', 'ઘણું', 'ચાલુ', 'ચાલો', 'ચૂકી', 'છતાં', 'જરૂર', 'જવું', 'જાડા', 'જાણે', 'જાણો', 'જાતે', 'જીઆઈ', 'જીવો', 'જૂથો',
-                                'જૂની', 'જોઈએ', 'જોકે', 'ટીટી', 'ટીડી', 'ટીપી', 'ટીવી', 'ટીસી', 'ટેકો', 'ટ્વિ', 'ડાઉન', 'તેણી', 'તેના', 'તેને', 'તેવી', 'ત્રણ', 'થોડા', 'થ્રુ', 'દરેક', 'દ્વિ', 'નંબર', 'નજીક', 'નબળી', 'નવું', 'નહીં', 'નાના', 'નીચા', 'નીચે', 'નુકે', 'પંદર', 'પચાસ', 'પછાત', 'પાંચ', 'પાછળ', 'પાછા', 'પિતૃ', 'પીઆર', 'પીટી', 'પીપી', 'પૂછે', 'પૂરી', 'પેટા', 'પોકળ', 'પોતે', 'બંને', 'બદલે', 'બધું', 'બહાર', 'બાજુ', 'બાલા', 'બીઆર', 'બીજે', 'બીજો', 'બીટી', 'બીડી', 'બીબી', 'બીવી', 'ભાગો', 'મહાન', 'માટે', 'માણસ', 'માને', 'મારા', 'મારી', 'મિલી', 'મીમી', 'મૂકે', 'મૂકો', 'મોટા', 'મોટે', 'મ્યુ', 'રાખે', 'રિંગ', 'રુદન', 'રૂચિ', 'લગભગ', 'લગ્ન', 'લાઇન', 'લાગે', 'લીધો', 'લેતા', 'વર્ગ', 'વર્ષ', 'વિશે', 'વીજી', 'વીસી', 'શક્ય', 'શન્ટ', 'શાંત', 'શોધે', 'શોધો', 'શ્રી', 'સભ્ય', 'સમજુ', 'સમાન', 'સહેજ', 'સાઇટ', 'સાથે',
-                                'સાદર', 'સામે', 'સાયક', 'સીડી', 'સીધા', 'સીવી', 'સુધી', 'સૂચન', 'સૌથી', 'સ્થળ', 'સ્લે', 'હજાર', 'હાજર', 'હેઠળ', 'હેવન', 'હોવા', 'અનામત', 'અમારા', 'અર્પા', 'અવિરત', 'આપણું', 'આપવું', 'આપ્યો', 'આવ્યા', 'આસપાસ', 'ઇચ્છા', 'ઉતાવળ', 'ઉપયોગ', 'ઊગવું', 'એકવાર', 'એમઝેડ', 'ઓરડાઓ', 'ઓર્ડર', 'કંઈપણ', 'કપ્શન', 'કરતાં', 'કરવું', 'કર્યા', 'કહેતા', 'કારણે', 'કારણો', 'કાર્ય', 'કિંમત', 'કુવાઓ', 'કેટલુ', 'કેન્ટ', 'કોઈપણ', 'કોર્સ', 'ક્યાં', 'ક્યાય', 'ક્લિક', 'ખરીદી', 'ખરેખર', 'ખાતરી', 'ગંભીર', 'ગ્રામ', 'ચલાવો', 'ચહેરો', 'ચાલીસ', 'ચુંબન', 'જણાવે', 'જરૂરી', 'જલ્દી', 'જાણતા', 'જાતને', 'જેનું', 'જેમને', 'જેમાં', 'જોડાઓ', 'જોયું', 'જ્યાં', 'ડબારા', 'તથ્યો', 'તદ્દન', 'તમારા', 'તારીખ', 'તેમણે', 'તેમના', 'તેમને', 'તેમાં', 'તૈયાર', 'ત્યાં', 'ત્રીસ', 'થોડું', 'થ્રોગ', 'દયાળુ', 'દેખાય', 'નહોતો', 'નાનું', 'નેવું',
-                                'પછીથી', 'પરંતુ', 'પાતળા', 'પાત્ર', 'પાનું', 'પૂરતા', 'પૂરતૂ', 'પ્રતિ', 'પ્રથમ', 'પ્રિય', 'બતાવે', 'બતાવો', 'બધાને', 'બનાવે', 'બનાવો', 'બપોરે', 'બરાબર', 'બાજુઓ', 'બાયોલ', 'બિંદુ', 'બીજું', 'બીમાર', 'ભયાનક', 'ભિન્ન', 'મહત્વ', 'માંગે', 'માંથી', 'માત્ર', 'માયસે', 'માર્ગ', 'મેન્ટ', 'મેળવો', 'મોટું', 'મોસ્ટ', 'યુવાન', 'યોગ્ય', 'રહ્યા', 'રાજ્ય', 'રાશિઓ', 'લંબાઈ', 'લાંબા', 'લાંબી', 'વગેરે', 'વચ્ચે', 'વત્તા', 'વધારે', 'વર્ણન', 'વર્ષો', 'વસ્તુ', 'વહેલી', 'વળાંક', 'વિદાય', 'વિભાગ', 'વિવિધ', 'વૃદ્ધ', 'શકવું', 'શબ્દો', 'શરૂઆત', 'શૂન્ય', 'સંકેત', 'સંકોચ', 'સંભવત', 'સક્ષમ', 'સભ્યો', 'સમગ્ર', 'સમર્થ', 'સમાવે', 'સહાયક', 'સારું', 'સિવાય', 'સૂચવે', 'સૂચવો', 'હકીકત', 'હમણાં', 'હર્સે', 'હિંમત', 'હોવું', 'અંદરની', 'અગિયાર', 'અનુરૂપ', 'અનુસરે', 'અનુસાર', 'અન્યથા', 'આંતરિક', 'ઇચ્છતા', 'ઉદઘાટન', 'ઉદાહરણ', 'ઉપયોગી',
-                                'ઉપરાંત', 'ઉપલબ્ધ', 'એકંદરે', 'એન.એલ.', 'એન.ડી.', 'એમ.ડી.', 'એમએક્સ', 'ઓછામાં', 'કયારેક', 'કર્યું', 'કહ્યું', 'કિ.મી.', 'કેટલાક', 'કોઈકને', 'ક્યાંક', 'ક્યારે', 'ખુલ્લા', 'ગમ્યું', 'ચહેરાઓ', 'ચોક્કસ', 'ચોખ્ખી', 'ચોખ્ખુ', 'છેલ્લા', 'જીત્યો', 'જ્યારે', 'ડૂબવું', 'તમારું', 'તેઓનું', 'તેણીના', 'દુનિયા', 'દેખીતી', 'દ્વારા', 'નકામું', 'નમસ્તે', 'નવલકથા', 'નવીનતમ', 'નીચેના', 'પરિણામ', 'પહેલાં', 'પહોળાઈ', 'પાંચમો', 'પાછળની', 'પુછવું', 'પુરુષો', 'પુસ્તક', 'પૃષ્ઠો', 'પોઇન્ટ', 'પોતાના', 'પોતાને', 'પ્યાલો', 'પ્રદાન', 'પ્રયાસ', 'ફેરફાર', 'બનાવેલ', 'બન્યું', 'બાદમાં', 'બી.એસ.', 'ભરેલું', 'ભાગ્યે', 'ભૂતકાળ', 'માર્ગો', 'માહિતી', 'મિલિયન', 'મેળવેલ', 'યુપીએસ', 'રસપ્રદ', 'રાખવું', 'લાગતું', 'વધુમાં', 'વસ્તુઓ', 'વાપરવુ', 'વિચારે', 'વિચારો', 'વિપરીત', 'વિશેષણ', 'શક્યતા', 'સંખ્યા', 'સંભવત.', 'સંભવિત', 'સંશોધન', 'સમસ્યા', 'સી.એસ.',
-                                'સી.સી.', 'સીએક્સ', 'સેકન્ડ', 'સોમેથન', 'સ્થાનો', 'સ્પષ્ટ', 'સ્વર્ગ', 'સ્વાગત', 'હંમેશા', 'હાલમાં', 'અસંભવિત', 'આશ્ચર્ય', 'કમનસીબે', 'ક્યાંથી', 'ક્યારેક', 'ક્યારેય', 'ખોલ્યું', 'છુપાવેલ', 'જાણીતું', 'જાહેરાત', 'ટૂંકમાં', 'ત્યાંથી', 'ત્યારથી', 'ત્રીજું', 'દરમિયાન', 'દર્શાવે', 'દોડ્યું', 'ધરાવતું', 'નિરર્થક', 'નીચેનું', 'પરવાનગી', 'પરિણામે', 'પરિણામો', 'પરીક્ષણ', 'પહેલાથી', 'પહેલેથી', 'પૂછ્યું', 'બાજુમાં', 'બાદબાકી', 'મધ્યાહન', 'મોકલ્યો', 'લાગ્યું', 'લેવામાં', 'વપરાયેલ', 'વર્ણવેલ', 'વિગતવાર', 'વિભાજિત', 'વિરુદ્ધ', 'વિસ્તાર', 'વેબસાઇટ', 'વ્યાજબી', 'શ્રીમતી', 'શ્રીમાન', 'શ્રેષ્ઠ', 'સંખ્યાઓ', 'સંપૂર્ણ', 'સંબંધિત', 'સમર્થિત', 'સમસ્યાઓ', 'સામાન્ય', 'સિત્તેર', 'અનુક્રમે', 'અનુસર્યા', 'ઉપયોગિતા', 'ઉમેર્યું', 'ટ્રિલિયન', 'ત્યારબાદ', 'ધ્યાનમાં', 'નેટસ્કેપ', 'નોંધ્યું', 'પૂર્ણાંક', 'પૂર્વવત્', 'પોઇન્ટેડ', 'પ્રસ્તુત', 'બતાવ્યું', 'બનાવેલું', 'ભૂતપૂર્વ', 'મૂકવામાં', 'વિદેશમાં',
-                                'શંકાસ્પદ', 'સંકળાયેલ', 'સમાનરૂપે', 'સહેલાઇથી', 'અપનાવ્યું', 'અવગણવામાં', 'અસરગ્રસ્ત', 'કમ્પ્યુટર', 'કિલોગ્રામ', 'ગંભીરતાથી', 'ચોક્કસપણે', 'જરૂરિયાતો', 'તાજેતરમાં', 'તાત્કાલિક', 'નિષ્ઠાવાન', 'નોંધપાત્ર', 'પોઇન્ટિંગ', 'પ્રમાણમાં', 'ભારપૂર્વક', 'મિલિગ્રામ', 'મુખ્યત્વે', 'મેળવવામાં', 'વિચાર્યું', 'વ્યાપકપણે', 'શક્તિશાળી', 'શુભેચ્છાઓ', 'અનુલક્ષીને', 'મહત્વપૂર્ણ', 'સંપૂર્ણપણે', 'અનુક્રમણિકા', 'આસ્થાપૂર્વક', 'જરૂરિયાતમંદ', 'સફળતાપૂર્વક', 'માઇક્રોસોફ્ટ', 'સંક્ષિપ્તમાં',
-                                'അതിനാൽ','അവ','അവരുടെ','അവരെ','അവരെന്ന','അവര്','അവര്ക്ക്','അവരോട്',
-                                'ಈ','ಆದರೆ','ಎಂದು','ಅವರ','ಮತ್ತು','ಎಂಬ','ಅವರು','ಒಂದು','ಬಗ್ಗೆ','ಆ','ಇದೆ','ಇದು','ನಾನು','ಮೂಲಕ','ನನ್ನ','ಅದು','ಮೇಲೆ','ಈಗ','ಹಾಗೂ','ಇಲ್ಲ','ಮೊದಲ','ನನಗೆ','ಹೆಚ್ಚು','ಅವರಿಗೆ','ತಮ್ಮ','ಮಾಡಿ','ನಮ್ಮ','ಮಾತ್ರ','ದೊಡ್ಡ','ಅದೇ','ಕೂಡ','ಸಿನಿಮಾ','ಯಾವುದೇ','ಯಾವ','ಆಗ','ತುಂಬಾ','ನಾವು','ದಿನ','ಬೇರೆ','ಅವರನ್ನು','ಎಲ್ಲಾ','ನೀವು','ಸಾಕಷ್ಟು','ಕನ್ನಡ','ಹೊಸ','ಮುಂದೆ','ಹೇಗೆ','ನಂತರ','ಇಲ್ಲಿ','ಕೆಲಸ','ಅಲ್ಲ','ಬಳಿಕ','ಒಳ್ಳೆಯ','ಹಾಗಾಗಿ','ಒಂದೇ','ಜನ','ಅದನ್ನು','ಬಂದ','ಕಾರಣ','ಅವಕಾಶ','ವರ್ಷ','ನಿಮ್ಮ','ಇತ್ತು','ಚಿತ್ರ','ಹೇಳಿ','ಮಾಡಿದ','ಅದಕ್ಕೆ','ಆಗಿ','ಎಂಬುದು','ಅಂತ','ಕೆಲವು','ಮೊದಲು','ಬಂದು','ಇದೇ','ನೋಡಿ','ಕೇವಲ','ಎರಡು','ಇನ್ನು','ಅಷ್ಟೇ','ಎಷ್ಟು','ಚಿತ್ರದ','ಮಾಡಬೇಕು','ಹೀಗೆ','ಕುರಿತು','ಉತ್ತರ','ಎಂದರೆ','ಇನ್ನೂ','ಮತ್ತೆ','ಏನು','ಪಾತ್ರ','ಮುಂದಿನ','ಸಂದರ್ಭದಲ್ಲಿ',
-                                'ಮಾಡುವ','ವೇಳೆ','ನನ್ನನ್ನು','ಮೂರು','ಅಥವಾ','ಜೊತೆಗೆ','ಹೆಸರು','ಚಿತ್ರದಲ್ಲಿ',
-                                'ਇਹ','ਉਸ','ਇੱਕ','ਹੈ','ਕਾ','ਕੀ','ਕੋ','ਅਤੇ','ਨੇ','ਕੀਤਾ','ਹੋਇਆ','ਸੀ','ਸੀ','ਥਾ','ਥੀ','ਸੰਗ','ਉਸਨੇ','ਇਸਦੇ','ਉਨਦੇ','ਸਭ','ਕੁਝ','ਕਿਸੇ','ਕਿੱਥੋਂ','ਕਿਵੇਂ','ਕਿਉਂ','ਕੋਈ','ਇਹਨਾਂ','ih','us','ik','hai','ka','ki','ko','ate','ne','kita','hoiya','si','si','tha','thi','sang','usne','isde','unde','sabh','kujh','kise','kithon','kiven','kiun','koi','ihnan',
-                                'آئی','آئے','آج','آخر','آخرکبر','آدهی','آًب','آٹھ','آیب','اة','اخبزت','اختتبم','ادھر','ارد','اردگرد','ارکبى','اش','اضتعوبل','اضتعوبلات','اضطرذ','اضکب','اضکی','اضکے','اطراف','اغیب','افراد','الگ','اور','اوًچب','اوًچبئی','اوًچی','اوًچے','اى','اً','اًذر','اًہیں','اٹھبًب','اپٌب','اپٌے','اچھب','اچھی','اچھے','اکثر','اکٹھب','اکٹھی','اکٹھے','اکیلا','اکیلی','اکیلے','اگرچہ','اہن','ایطے','ایک','ب','ت','تبزٍ','تت','تر','ترتیت','تریي','تعذاد','تن','تو','توبم','توہی','توہیں','تٌہب','تک','تھب','تھوڑا','تھوڑی','تھوڑے','تھی','تھے','تیي','ثب','ثبئیں','ثبترتیت','ثبری','ثبرے','ثبعث','ثبلا','ثبلترتیت','ثبہر','ثدبئے','ثرآں','ثرش','ثعذ','ثغیر','ثلٌذ','ثلٌذوثبلا','ثلکہ','ثي','ثٌب','ثٌبرہب','ثٌبرہی','ثٌبرہے','ثٌبًب','ثٌذ','ثٌذکرو','ثٌذکرًب'
-                                ,'ثٌذی','ثڑا','ثڑوں','ثڑی','ثڑے','ثھر','ثھرا','ثھراہوا','ثھرپور','ثھی','ثہت','ثہتر','ثہتری','ثہتریي','ثیچ','ج','خب','خبرہب','خبرہی','خبرہے','خبهوظ','خبًب','خبًتب','خبًتی','خبًتے','خبًٌب','خت','ختن','خجکہ','خص','خططرذ','خلذی','خو','خواى','خوًہی','خوکہ','خٌبة','خگہ','خگہوں','خگہیں','خیطب','خیطبکہ','در','درخبت','درخہ','درخے','درزقیقت','درضت','دش','دفعہ','دلچطپ','دلچطپی','دلچطپیبں','دو','دور','دوراى','دوضرا','دوضروں','دوضری','دوضرے','دوًوں','دکھبئیں','دکھبتب','دکھبتی','دکھبتے','دکھبو','دکھبًب','دکھبیب','دی','دیب','دیتب','دیتی','دیتے','دیر','دیٌب','دیکھو','دیکھٌب','دیکھی','دیکھیں','دے','ر','راضتوں','راضتہ','راضتے','رریعہ','رریعے','رکي','رکھ','رکھب','رکھتب','رکھتبہوں','رکھتی','رکھتے','رکھی','رکھے','رہب','رہی','رہے','ز','زبصل'
-                                ,'زبضر','زبل','زبلات','زبلیہ','زصوں','زصہ','زصے','زقبئق','زقیتیں','زقیقت','زکن','زکویہ','زیبدٍ','صبف','صسیر','صفر','صورت','صورتسبل','صورتوں','صورتیں','ض','ضبت','ضبتھ','ضبدٍ','ضبرا','ضبرے','ضبل','ضبلوں','ضت','ضرور','ضرورت','ضروری','ضلطلہ','ضوچ','ضوچب','ضوچتب','ضوچتی','ضوچتے','ضوچو','ضوچٌب','ضوچی','ضوچیں','ضکب','ضکتب','ضکتی','ضکتے','ضکٌب','ضکی','ضکے','ضیذھب','ضیذھی','ضیذھے','ضیکٌڈ','ضے','طرف','طریق','طریقوں','طریقہ','طریقے','طور','طورپر','ظبہر','ع','عذد','عظین','علاقوں','علاقہ','علاقے','علاوٍ','عووهی','غبیذ','غخص','غذ','غروع','غروعبت','غے','فرد','فی','ق','قجل','قجیلہ','قطن','لئے','لا','لازهی','لو','لوجب','لوجی','لوجے','لوسبت','لوسہ','لوگ','لوگوں','لڑکپي','لگتب','لگتی','لگتے','لگٌب','لگی','لگیں','لگے','لی','لیب','لیٌب','لیں',
-                                'لے','ه','هتعلق','هختلف','هسترم','هسترهہ','هسطوش','هسیذ','هطئلہ','هطئلے','هطبئل','هطتعول','هطلق','هعلوم','هػتول','هلا','هوکي','هوکٌبت','هوکٌہ','هٌبضت','هڑا','هڑًب','هڑے','هکول','هگر','هہرثبى','هیرا','هیری','هیرے','هیں','و','وار','والے','وٍ','ًئی','ًئے','ًب','ًبپطٌذ','ًبگسیر','ًطجت','ًقطہ','ًو','ًوخواى','ًکبلٌب','ًکتہ','ًہ','ًہیں','ًیب','ًے'
-            ]
-            stop_words.extend(indic_stopwords)
-
-        comment = row['comment_textDisplay']
-
-        comment_cleaned = re.sub(r'[^\w\s]', '', comment)
-        ytwords = comment_cleaned.split()
-
-        ytwords = [ytword for ytword in ytwords if ytword.lower() not in stop_words and ytword.lower() not in custom_profanitywords]
-        ytwords = [ytword for ytword in ytwords if not profanity.contains_profanity(ytword)]
-
-        cleaned_comment = " ".join(ytwords)
-        YT_comments.append(cleaned_comment)
-
-    YT_comments_final = data.copy()
-    YT_comments_final['comment_textDisplay'] = YT_comments
-
-    return YT_comments_final
-################################################################################################
-#Step17: Source didnt had label. We are adding labels based on tags
+#Step10: Source didnt had label. We are adding labels based on tags
 def CreateFlagsbyLabelingParty(sourcedata):
     """
     Author: Jagadeesan Rajalakshmi Vellaichamy
@@ -530,7 +306,7 @@ def CreateFlagsbyLabelingParty(sourcedata):
     sourcedata['ing'] = ing_flags
     return sourcedata
 ################################################################################################
-#Step18: Remove comments which doesnt attribute to either BJP or Congress
+#Step11: Remove comments which doesnt attribute to either BJP or Congress
 def RemoveCommentswithallFlags0(sourcedata):
     """
     Author: Jagadeesan Rajalakshmi Vellaichamy
@@ -545,7 +321,7 @@ def RemoveCommentswithallFlags0(sourcedata):
     validpartiesdf = sourcedata[(sourcedata['bjp'] != 0) | (sourcedata['ing'] != 0)]
     return validpartiesdf
 ################################################################################################
-#Step19: Remove comments which doesnt attribute to either BJP or Congress
+#Step12: Remove comments which doesnt attribute to either BJP or Congress
 def BlankCommentsRemoval(sourcedata, columnname):
     """
     Author: Jagadeesan Rajalakshmi Vellaichamy
@@ -561,7 +337,270 @@ def BlankCommentsRemoval(sourcedata, columnname):
     sourcedata = sourcedata[sourcedata[columnname].str.strip() != '']  # Filter out rows where the column is not blank
     return sourcedata
 ################################################################################################
-#Step20: Yoytube comments data collected is doesnt have sentiment label or score in it.
+#Step13: Identify the regional language based on text comments
+DetectorFactory.seed = 0
+def Language_Identification(sourcedata, columnname):
+    """
+    Author: Jagadeesan Rajalakshmi Vellaichamy
+    Reviewer: Dani Papamaximou
+    Created At: 20/08/2023
+    Description: This function identifies the regional languages in the comments column
+    :param sourcedata: The source data frame
+    :type sourcedata: data frame
+    :param columnname: The comments text column
+    :type columnname: str
+    :return: data frame
+    """
+    indi_lang = {
+        'hi': 'Hindi',
+        'bn': 'Bengali',
+        'te': 'Telugu',
+        'ta': 'Tamil',
+        'mr': 'Marathi',
+        'ur': 'Urdu',
+        'gu': 'Gujarati',
+        'kn': 'Kannada',
+        'ml': 'Malayalam',
+        'pa': 'Punjabi',
+        'or': 'Odia'
+    }
+
+    def Language_Identification_helper(comments):
+        try:
+            detected_lang = detect(comments)
+            if detected_lang in indi_lang:
+                return indi_lang[detected_lang], detected_lang
+            return "English", "en"
+        except:
+            return "unknown", "unknown"
+
+    sourcedata['language'], sourcedata['language_code'] = zip(*sourcedata[columnname].apply(Language_Identification_helper))
+    return sourcedata
+###############################################################################################
+#Step14: Remove the comments with language unknown or not identified
+def Unidentified_language_removal(sourcedata):
+    """
+    Author: Jagadeesan Rajalakshmi Vellaichamy
+    Reviewer: Dani Papamaximou
+    Created At: 20/08/2023
+    Description: This function removes unknown languages
+    :param sourcedata: The source data frame
+    :type sourcedata: data frame
+    :return: data frame
+    """
+    # Remove rows with 'unknown' language_code
+    validlangdf = sourcedata[sourcedata['language_code'] != 'unknown'].copy()
+    return validlangdf
+###############################################################################################
+#Step15: convert english based comments to lowercase
+def English_comments_to_lower(sourcedata, columnname):
+    """
+    Author: Jagadeesan Rajalakshmi Vellaichamy
+    Reviewer: Dani Papamaximou
+    Created At: 20/08/2023
+    Description: This function converts english comments to lower case
+    :param sourcedata: The source data frame
+    :type sourcedata: data frame
+    :param columnname: The comments text column
+    :type columnname: str
+    :return: data frame
+    """
+    sourcedata[columnname] = sourcedata[columnname].str.lower()
+    return sourcedata
+###############################################################################################
+#Step16: Additional iteration in updating the Roman Script of Indian regional languages
+#List of custom words (bag of words) used in identifying the Roman script of indian languages
+words_to_check = {
+    'Hindi': ['aap','hum','yeh','sur','nat','bhi','jee','koi','aao','kya','maa','har','nit','bal','hai','din','kal','man','mai','tum','dil','mel','bol','hal','aur','kab','ban','hun','lev','hua','dom','bas','lou','kar','mat','dam','nas','nav','dut','gam','dev','rah','git','ram','ras','roz','laal','maaf','naam','raat','jald','maan','paas','rahi','saaf','aage','nach','rais','taap','gyan','gair','maya','dard','hona','jana','upar','liye','mana','chod','prem','band','chal','nayi','bhag','tark','chah','jiye','kuch','patr','tele','kadi','tika','atma','hand','hara','naav','pata','bojh','daak','sang','suru','daal','kaam','bhav','mukh','baat','jaag','urja','baja','dand','hans','nahi','path','dhua','nari','bali','lohe','loka','loni','vrat','jyon','mani','naak','sham','noor','mouj','waqt','zila','chor','kavi','khel','sima','deta','khub','soch','dhan','naya','dukh','lagi','nira','doga','lahu','pani','ekta','data','pita','garv','ghar','mera','desh','teji','raja','roop','rang','haar','kone','gaadi','jaisa','karna','paani','saath','uchit','bheed','garmi','karne','naari','taana','vastu','yatra','dhyan','garam','jaldi','karta','laakh','maang','udyog','khush','chaya','kadam','kuchh','niyam','pyaar','sagar','aankh','aaram','gayak','nayak','parya','yuddh','gyaan','mitti','samay','tarah','cinta','tatha','andar','divas','akeli','chota','bhakt','pauna','satya','jivan','kursi','saneh','avsar','mooch','paida','dalne','janam','kshan','odhni','pankh','upyog','daman','keeda','palna','badan','dhire','lakar','lagta','bagal','hathi','manch','poora','bahut','lagna','namak','varan','jevan','naada','vastr','badal','dhuaa','vidhi','humre','baste','jiwan','jadoo','basti','baten','navin','kabhi','beech','chand','kanha','nipat','bhaav','kajal','bhara','karya','katha','munde','bhool','murti','zarur','mudit','sidhi','daana','khaas','kisan','naadi','khoob','konsa','kiran','nidhi','nanha','sthan','cheta','lajja','paksh','kadar','lamba','patra','dagar','farak','patth','maarg','karan','mahal','khata','takat','kheli','dhaar','khana','tirth','ghoos','khyal','dhatu','goonj','treta','dhood','ruchi','dhool','tukda','haath','sadaa','tyaag','antib','bilkul','dheere','taakat','yahaan','zaroor','chehra','humein','laayak','chetan','saahas','vichar','zubaan','bhasha','takkal','vahaan','chinta','dekhna','sanket','vigyan','dimaag','hansna','sanyog','virodh','makaan','sansay','ashaat','mausam','chupke','vritti','nagari','pallav','unchai','atithi','jalana','nikhar','dharna','haraan','sangam','baccha','hamare','khayal','sanyam','janlev','samaaj','vastav','prabha','baatna','jhapat','lashan','prerna','dhvani','sankat','bahana','dhyaan','vishay','choona','nashta','preeti','sapnaa','vyakti','dhakka','purush','shakti','kahani','shanti','bhajan','kaamna','shreya','yantra','katori','sharir','kavita','keemat','bhojan','khelna','zoorna','kudrat','sparsh','dhoodh','doosra','nirnay','spasht','sundar','daaman','kamaal','nirmal','swapna','kamzor','swasth','dastak','paudha','gathri','peedit','mahila','prayas','swayam','gaurav','prakop','khidki','dharam','raksha','toofan','kirana','rupaya','sachet','rupiya','chahiye','vaastav','achchha','zindagi','hungama','chalana','sandesh','vinamra','koshish','macchar','nivedan','vishram','vishesh','bhashan','duskami','drishya','sacchai','uplabdh','dheeraj','patthar','pragati','sanyasi','vasudha','bandish','barasna','sankhya','bandhna','pradaan','vimarsh','pradesh','santaan','dilwala','vishwas','bhagwan','chetana','vyanjan','chintan','mulayam','bhushan','bhraman','sindoor','chakkar','nischay','nirdesh','pakshap','swabhav','pichhda','prakash','prerana','prishth','dhaaran','dharati','trishna','triveni','uddeshya','parchhai','chutkara','santulan','kvyapaar','samjhana','jhanjhna','dikhlana','prayatna','shikayat','vyavahar','shradhha','kartavya','siddhant','dakshina','bikharna','charitra','pahunche','suraksha','paryatan','taiyaari','tatkalin','ghinouna','parvachan','vichchhed','chopadiya','dhaaranaa','baksheesh','sangharsh','sanrachna','vyavastha','nishpatti','chikitsak','sindhutva','dhakelana','giraftaar','dhanyavaad','niyantraan','pratishodh','swatantrata','pratiyogita','pratispardha'],
+    'Bengali': ['alo','ase','din','maa','nai','nei','noy','paa','ami','eto','kya','koi','ato','eta','jao','mar','rup','sei','tui','abar','aati','ache','anek','baal','boli','bose','chai','didi','dike','emon','haan','haat','habe','hobe','jabo','jana','kaaj','keno','kore','kuno','lage','lali','mama','mane','mone','naam','naki','nijo','onno','pujo','saja','suru','vaat','asbe','boro','haoa','pora','saho','thik','amar','tumi','paro','shob','taai','koto','balo','kaal','toke','baba','chul','ghar','hare','jabe','kono','koro','mata','mere','mile','more','moto','name','onek','opor','pare','pele','rate','rong','acche','aasha','achhe','adhik','baaje','bhalo','bhora','chaai','dekhe','dhoro','email','holam','karon','khela','kichu','kotha','lomba','matha','porbe','raate','roilo','snaan','tomay','varsa','ashon','ashte','ashun','bhebe','bhule','chaay','gache','korbe','lagbe','rakho','ekbar','korte','kemon','aache','bolte','tomar','jemon','kemne','kamon','parbe','amake','chele','choto','hashe','kheye','khete','khusi','lojja','mayer','natok','pashe','patha','phire','shuru','thake','tomra','aadhar','aamaar','ananda','ashaay','bhasha','britha','chaalo','chhoto','chokhe','deoyal','gobhir','saathe','avabar','bondhu','hochhe','shomoy','korcho','shathe','bujhte','lagche','kobita','bilkul','dheere','taakat','yahaan','zaroor','chehra','humein','laayak','chetan','saahas','vichar','zubaan','takkal','vahaan','chinta','dekhna','sanket','vigyan','dimaag','hansna','sanyog','virodh','makaan','sansay','ashaat','mausam','chupke','vritti','nagari','pallav','unchai','atithi','jalana','nikhar','dharna','haraan','sangam','baccha','hamare','khayal','sanyam','janlev','samaaj','vastav','prabha','baatna','jhapat','lashan','prerna','dhvani','sankat','bahana','dhyaan','vishay','choona','nashta','preeti','sapnaa','vyakti','dhakka','purush','shakti','kahani','shanti','bhajan','kaamna','shreya','yantra','katori','sharir','kavita','keemat','bhojan','khelna','zoorna','kudrat','sparsh','dhoodh','doosra','nirnay','spasht','sundar','daaman','kamaal','nirmal','swapna','kamzor','swasth','dastak','paudha','gathri','peedit','mahila','prayas','swayam','gaurav','prakop','khidki','dharam','raksha','toofan','kirana','rupaya','sachet','rupiya','apnake','ashena','bangla','dekhte','jibone','school','shudhu','tahole','thakbe','tokhon','tomake','aananda','krishno','opekkha','thaakbe','bhushon','korecho','bujhchi','chahiye','vaastav','achchha','zindagi','hungama','chalana','sandesh','vinamra','koshish','macchar','nivedan','vishram','vishesh','bhashan','duskami','drishya','sacchai','uplabdh','dheeraj','patthar','pragati','sanyasi','vasudha','bandish','barasna','sankhya','bandhna','pradaan','vimarsh','pradesh','santaan','dilwala','vishwas','bhagwan','chetana','vyanjan','chintan','mulayam','bhushan','bhraman','sindoor','chakkar','nischay','nirdesh','pakshap','swabhav','pichhda','prakash','prerana','prishth','dhaaran','dharati','trishna','triveni','lallike','nainaki','urevalo','uddeshya','parchhai','chutkara','santulan','kvyapaar','samjhana','jhanjhna','dikhlana','prayatna','shikayat','vyavahar','shradhha','kartavya','siddhant','dakshina','bikharna','charitra','pahunche','suraksha','paryatan','taiyaari','tatkalin','ghinouna','facebook','protidin','porporle','sheshtai','parvachan','vichchhed','chopadiya','dhaaranaa','baksheesh','sangharsh','sanrachna','vyavastha','nishpatti','chikitsak','sindhutva','dhakelana','giraftaar','jolkhabar','dhanyavaad','niyantraan','pratishodh','swatantrata','pratiyogita','bondhuchara','pratispardha'],
+    'Telugu': ['mee','adi','ani','idi','ela','oka','emi','naa','tho','adu','ala','baa','edo','haa','ila','jey','ooh','ore','nenu','kuda','kani','idhi','inka','vala','ante','adhe','okka','aame','adhi','anta','arey','ayyo','levu','leka','sepu','tosi','aaga','aena','aina','aite','amma','atla','ayya','eyyi','gari','hari','inni','itla','jaya','kala','keka','kodi','mari','menu','memu','raja','sari','seva','tanu','kosam','kooda','manam','avunu','aithe','ledhu','tappa','vaadu','kotha','kante','vaadi','ninnu','emito','pedha','kadaa','nannu','adugu','baaga','cheri','daani','desam','dhani','intlo','meeku','meeru','nijam','nundi','okati','oorlo','paalu','paata','pilla','prema','sagam','saavu','seema','sodhi','sompu','tunne','abbay','anthe','asalu','bandi','bhalu','chesi','chota','frnds','gaali','goppa','ipudu','jeyya','kayya','lokam','okaru','osaru','pedda','randi','satya','sarle','srinu','thodu','tholi','vachi','valla','yenti','yokka','unnadu','unnaru','antaru','enduku','avarku','avanni','assalu','baadha','dagara','ichina','illalu','intiki','jarige','kaadhu','kaalam','kastha','manasu','mundhu','panulu','raadhu','rojuki','tosina','vaalla','aasalu','andaru','appudu','bagane','badulu','bayata','bhayya','bhoomi','cheyya','chinna','cinema','dhanni','eyyaru','eyyava','gelavu','guruvu','kavali','lopala','madham','modati','mohini','nenuve','perugu','thindi','vandha','vasthe','cheyali','andamga','kakunda','tappaka','kothaga','matrame','untaadu','istharu','chesina','peddaga','abaddam','maamulu','thakuva','vaadini','padithe','padandi','aasaalu','adugunu','chotuga','dengina','dengali','doshamu','endhuku','evariki','kathalu','kevalam','kshanam','maarina','nijamga','praanam','prajalu','rakanga','rakunda','saraina','sontham','vundali','adugulu','aduthey','dhayyam','gaalilu','gattiga','krishna','madyalo','nenunte','pillalu','rambabu','tarvata','lallike','nainaki','urevalo','mimmalni','avakasam','vachindi','kalisina','cheppanu','anukunta','cheyadam','veskondi','aadarana','avasaram','bhootulu','chudandi','daggarai','erripuka','manchiga','okkasari','paatedhi','padipoya','penchaga','pothunna','prakhyam','prakrame','prayanam','saradaga','sarvasva','vaallaki','vadalara','vishayam','dikhlana','prayatna','shikayat','vyavahar','shradhha','kartavya','siddhant','dakshina','bikharna','charitra','pahunche','suraksha','paryatan','taiyaari','tatkalin','ghinouna','chebuthe','cheyyaru','dhaaniki','jeyyaaru','nenulaki','peddamma','thakkuva','facebook','protidin','porporle','sheshtai','parigetti','vasthundi','chesinatu','avvakasam','kavalsina','raasindhi','antunnaru','cheyyandi','adigindhi','antunnadu','istharani','bauntundi','chinnappa','daridrapu','jeevitham','jolliestu','kalavatha','padutunna','palukutho','prakharam','preminchu','sakshanga','simhiyalu','vichitram','parvachan','vichchhed','chopadiya','dhaaranaa','baksheesh','sangharsh','sanrachna','vyavastha','nishpatti','chikitsak','sindhutva','dhakelana','giraftaar','jabardast','jarigindi','meerulaki','jolkhabar','theeskondi','isthunnaru','adugutundi','isthunnanu','brathakali','chesthunna','kaaranamga','prushottam','regincharu','sandarbham','dhanyavaad','niyantraan','pratishodh','isthunnaadu','vasthunnaru','telusthundi','aaparaadham','dorakatledu','jeevithamlo','marichipoya','paatinundhi','paristhithi','swatantrata','pratiyogita','gelusthunna','lekhinchuko','srimanthudu','thoguthundi','bondhuchara','chesthunnaru','kanipettandi','chepthunnadu','bhayapettina','emaipothunna','jaruguthundi','kanipincheru','modatinunchi','pratispardha','chesthunnaadu','anukuntunnanu','maatladuthunu','sambandhinche','choosthunnaadu','aalochinchandi'],
+    'Tamil': ['nan','ida','kai','vaa','kal','kol','kan','poy','men','mun','oru','sav','sol','svk','idu','por','pul','vil','aal','maa','nee','yen','avan','aval','illa','athu','podi','peru','vaai','vidu','seer','vitu','meel','ulla','mara','pada','aana','aaha','adhu','anbu','chol','eppo','etho','inge','ippa','ival','ivar','kaal','kana','koor','keer','naan','neer','nool','onru','osai','oyil','paal','paar','pasi','savu','seri','epdi','ithu','kann','koll','maan','meip','puvi','ravu','soll','than','thol','maip','aadu','aatu','avar','ayya','enna','enru','kelu','kodi','kudi','laam','siru','veru','intha','alavu','nalla','sollu','kooda','veesu','pottu','solla','aasai','nilai','porul','solli','aanal','avaru','boomi','engal','enjoy','indha','jolly','kalvi','kanda','kaval','kadal','koduk','kurai','maari','mahan','magan','manam','mella','mozhi','naadu','nalam','ninga','padal','padam','pagal','pothu','pudhu','raaja','ruchi','saara','sadai','samam','selai','surya','tamil','tarum','thaan','thala','endru','engum','ethai','payir','peyar','saami','sanda','there','illai','keezh','kuyil','pokku','ponnu','rasam','velai','vetti','aatam','avala','ennai','innum','kelvi','kovil','meeru','mokka','namma','naanu','neevu','paaru','summa','ungal','unmai','unnai','venum','yethu','neeyum','thaane','eppadi','aanaal','anuppu','thayir','unakku','enakku','suzhal','veettu','piragu','pakkam','selavu','thothu','umakku','vaikku','agalam','baasha','badhil','chithi','ippadi','ivarai','jeevan','kanavu','keerai','kollai','iyalbu','kangal','makkal','mazhai','moolai','mudhal','nanban','nandri','nangal','needhi','nirkka','parisu','poonga','raatri','sandai','thanni','kaalai','karuvi','kilavi','parvai','poonai','sakthi','seemai','selvam','thatha','ratham','thanga','tharum','thedum','irukku','iruvar','kaattu','kathai','kathir','konjam','maanam','maattu','neenga','oruvar','paavam','periya','panniru','thavira','irukkum','migavum','kevalam','vilakke','veliyil','petraar','poorvam','vayathu','vilakka','pattaam','athigam','amaippu','avanuga','azhudhu','ethuvum','ippavum','iyakkam','kadhali','kanneer','kavalai','kodutha','irunthu','karuthu','manaivi','marakka','munneer','odhunga','paartha','paarvai','payanam','sooriya','sundari','thangam','kadalai','kadavul','kurippu','magimai','manidha','maranam','rasathi','sappadu','thanjam','kodumai','puthusu','senthil','thanjai','avargal','enpathu','irukken','iruppin','ithuvum','mudiyum','naankal','nammaku','samayal','samayam','solriya','thamizh','unpathu','valathu','illaamal','tharuvom','illaatha','thiruppi','mukkiyam','kudumbam','parandhu','thiruthi','pannalam','purindhu','aruginra','pannunga','kalakkal','kavingar','kidaikka','ivarukku','manathil','mannavan','marundhu','puthumai','tharunam','ivalavil','kannamma','puthagam','thirudan','irupathu','kulithal','sandroru','thodarbu','yosithan','aarambam','avudaiya','kozhambu','marupadi','munnaadi','naanukku','sollunga','solvathu','tholaikka','aarambham','kaalathai','madhiyaal','nannaivar','sandhippu','thagappan','mazhaiyil','ragasiyam','kanavugal','magizhchi','avarkalai','engalukku','irunkiren','naanungal','periyavar','ungalukku','paravaigal','bhagavatha','kuzhandhai','olarvaatha','paarkalaam','makizhndhu','ratchasiya','tharavidai','vilaiyattu','azhaikanum','neengaluku','sugathiram','irukkirathu','padikkiraan','kudikkiraan','kottindraar','kodukkiraar','kodukkiraan','aarambhikka','nadanthathu','nedunthadhu','rajinikanth','marupadiyum','pudhupettai','neengalukku','puriyavillai','anaivarukkum','sooriyanaaru','yethentruyil','solvadhillai','kandupidippom','sagodharargal','virumbukirathu','kaattirukkirathu','koduthirukkiraan','maranthirukkirathu'],
+    'Marathi': ['ahe','ani','kal','nay','dil','kay','aai','aaj','aas','bag','dar','dev','dur','has','jag','jau','kha','lat','mol','vel','sap','sut','zep','mala','kasa','sang','kaay','kase','asla','khar','pani','dili','aala','nahi','kela','tula','gheu','yete','raha','asli','kaam','kahi','kele','karu','aho','ala','ali','ari','asa','asi','ata','aani','aata','amhi','ahaa','amba','amha','anek','baba','bahu','bala','bhat','bhas','chal','dada','fakt','gela','ghar','ghon','haat','hasu','hona','hoti','jaau','jaga','jeve','jhal','jati','kaal','keli','khan','khup','lage','lagn','lakh','maan','mann','mast','maza','mazi','nako','vaat','vish','puja','roka','sant','sarv','thav','ubha','saath','aaple','kaahi','sagla','majhe','kuthe','tyala','bagha','sagle','sangu','disat','ajab','akal','alag','amaa','amar','anga','anya','apla','aple','apli','apun','asud','aamhi','aapan','accha','agadi','ajuba','anand','ajaba','aatak','aakul','aanek','aarth','adhik','badal','baher','bahin','bhaag','bhaav','chhan','chaar','darja','dekhu','divas','dolya','durga','fayda','fokat','gaaon','gosht','gotra','jatee','jhali','kadha','kadun','kalat','kamal','karun','khara','maaji','maane','madat','majha','naahi','naate','navin','vadal','vakta','vhaag','vilas','chowk','latur','punha','paisa','prera','punah','punar','sapna','sathi','sathe','savin','thamb','thaya','upyog','vrudh','zepun','majhya','jhaale','shakto','milale','shakti','mhatla','aaplya','saathi','kuthhe','shikli','milala','tyacha','aaval','agale','aikya','ajali','ajata','amule','anang','anant','angat','anjay','artha','asach','ashat','asita','asudh','ayush','adhika','aamcha','aadhar','aagman','aanand','amucha','arthik','adbhut','aghadi','acchaa','bagait','balaka','bhaaji','bhojan','chaalo','dolyaa','geleli','ghevun','jeevan','keleli','laagal','lakhun','lavkar','mannat','mhanun','nantar','nantre','vachan','vaidya','vishay','vividh','mhanje','prayog','pushpa','rakhun','rustom','sanman','sathev','swagat','tvacha','tumhala','prashna','kuthlya','aamhala','rahasya','kaarane','amchya','anasha','anjali','anupam','apunle','arogya','asleel','asmita','asunuk','atavar','athava','athvan','abhyaas','amuchya','aakshar','aarthik','aananda','aadarsh','aabhaar','barobar','bhajani','bhraman','chukoon','darshan','hijaade','kashala','maulana','vinanti','waastaw','prerana','saangun','sahitya','sampati','sweekar','swataha','thambun','vaachan','watpade','sangitla','jhalayla','sangitli','shikshan','adarsha','adnyaat','alaukik','angikar','anubhav','anukram','anusara','anyavar','apeksha','apharan','aphilan','athavan','ayushya','aamuchya','abhimaan','abhipray','gadhadya','gandhiji','gharchya','jagachya','khushaal','lahanpan','wavering','randhawa','sangitale','dakhavata','alankaar','anarghya','anubhava','anukampa','anusaran','apekshit','aradhana','asankhya','aakrandan','aashirwad','aakrandit','abhipraya','bhavishya','karnyacha','mumbaichi','sangharsh','swatantra','vatavaran','apunyapas','asachahe','asudhahe','bhrunhatya','gadhvachya','instrument','mumbaichya','anyavastha','asudhasel','atishuddha','abhyaasacha','anusarkeli','asudhaslya','asunukasel','angikarkeli','arthashastra','asunukaslya','angikarkarun'],
+    'Urdu': ['mai','aap','hai','kya','yeh','par','kar','iss','aur','jis','bhi','tum','dil','sab','koi','kam','hun','rha','rhi','aag','aah','hum','log','maa','nah','umr','uss','woh','aib','nau','tha','aaj','asi','ata','ati','aye','bai','but','dar','din','dum','mein','hain','kiya','hota','agar','kaam','kuch','kyun','dard','wakt','acha','baar','sath','kisi','apna','bana','uska','unka','jana','phir','aana','apne','usne','unki','haan','pari','meri','mujh','raha','rahi','aage','aate','aati','aaya','aaye','adaa','faiz','haal','khul','laal','lafz','lage','lahu','liye','maan','maut','mere','munh','naam','nahi','paas','raah','raaz','rooh','saba','sada','soch','wafa','alag','ansu','asar','badi','chup','dafn','date','fana','fikr','gair','gham','ghar','gila','hala','ishq','jaan','jama','kash','laut','lime','lutf','maat','ruju','saja','shak','suna','zaat','adab','chot','daam','deta','husn','jurm','khat','maah','maal','aisa','aisi','ajab','alas','aman','ankh','bala','beta','bich','bura','daag','dagh','dukh','duri','yahan','kuchh','kaise','mujhe','dunya','tarah','dusra','karna','larka','larki','tumhe','taqat','sakta','sakti','maine','aapas','faqat','fikar','haath','habli','hafiz','havaa','khush','lagta','lekin','milti','naqsh','pahle','pehle','rooth','sapna','shauq','subah','udhar','umeed','waada','aankh','afsos','ajeeb','aksar','alfaz','ambar','aqsar','araam','azaad','bahar','bahut','chand','dilon','ehsas','hadsa','irada','jahan','judai','karam','khwab','laund','nahin','naseb','nasib','sabab','sahib','sajde','shair','sunte','surat','udasi','ujala','zeest','zuban','afwah','anban','arman','aurat','baita','dafan','daman','dinon','diqat','firqa','garaj','gusht','irade','jaaiz','kalma','khauf','khayr','likha','aapna','achha','adaab','aisay','akela','akhir','ameer','anmol','asman','asrar','ateet','atish','awaaz','bacha','badla','badle','bahot','behad','belam','betab','bijli','burai','burna','dagha','dekha','dosti','bilkul','zaroor','aakhir','aaraam','ghazal','haafiz','haasil','hadees','halaat','haseen','khwaab','maanta','maarna','nafrat','naseeb','piyaar','qudrat','tanhaa','afwaah','akhiri','baithe','bayaan','bedaad','doosri','faasla','haazir','haveli','iltija','inteha','khabar','khushi','khyaal','maamla','mayoos','munsif','mutaal','napaak','qusoor','siyaah','sunkar','taaluq','thakan','tufaan','ummeed','aasman','aayaat','afsona','aftaab','alfaaz','almari','aqwaal','aziyat','bahana','bhookh','dulhan','duniya','ehsaas','hazaar','hijaab','imkaan','ilaahi','insaan','jalebi','jawaab','khabri','mareez','masail','mehfil','moorat','muflis','mutalq','aapnay','adhuri','ajnabi','alvida','ankhon','anjaan','anjali','asmani','astana','bai-ji','bejaan','bemari','benaam','beshak','beshaq','bewafa','bidaar','bidesi','bilakh','chehra','chhota','chhoti','chumma','dekhna','dekhti','dekhte','doston','hairaan','mehmaan','musafir','sunehri','talaash','tehzeeb','zamaana','zindagi','amaanat','amreeka','aurtain','bewafai','faryaad','haaziri','ijaazat','mojaiza','munasib','mushkil','musibat','raushan','riwayat','safeena','shaukat','tasweer','aanchal','adaalat','afwaahe','akhbari','ambwari','anjuman','baghair','chandni','ijtimaa','irshaad','masroof','mehkuma','munafiq','aitbaar','badnaam','badnami','barsaat','bekarar','bekhauf','bekhudi','bemisal','beqarar','burhapa','burhapy','charagh','chashma','chubhti','daikhna','darogha','dilruba','aazmaish','mehrbani','mulaqaat','nazaakat','paimaane','sharafat','behisaab','imtihaan','mohabbat','naqaabil','pakeezah','pareshan','samandar','tamaasha','tanaffur','tashreef','baahisht','charaagh','intezaar','awarapan','bahut-sa','bahot hi','bardasht','bekhabar','beniyaad','beparwah','darkhast','darwaaza','khwaahish','maashooqa','nigaahein','intikhaab','khairiyat','badmaashi','hoshyaari','istiqlaal','khazaanaa','asaathiya','badi waqt','beikhtiar','chhoti si','darmiyaan','dekha hua','dilrubaai','ashiyaanaa','aisi tarah','bahut zada','but-parast','dard-e-dil','dekhti hui','dil-e-wafa','dil-o-jaan','dukh-e-dil','asar-e-wafa','ata-ul-faiz','awaaz-e-dil','chhoti umar','dafa-e-ishq','dard-e-ishq','dard-e-wafa','dil-e-nazuk','dukh-e-wafa','badi mushkil','bahut zaruri','chhoti ulfat','dard-e-sitam','dukh-e-jahan','bahut zaroori','bilakh-bilakh','dekhte-dekhte','dekhte-dekhti','asar-e-mehboob','bahut pyaar se','dekhte-dekhtay','darkhast-e-ishq','dil-e-nazuk-e-ishq'],
+    'Gujarati': ['ema','kya','che','ane','kem','aap','hoi','thi','kai','maj','shu','cho','koi','laj','nai','nav','oli','evu','naj','nik','por','pun','roj','ame','are','ave','bag','bol','evi','tel','des','han','hun','mel','vat','vay','kaj','mul','sau','tame','chhu','etla','kari','chho','rahe','vaat','hova','natu','maal','karu','hase','chhe','game','hoyo','kaho','kare','raha','haru','bura','besu','choo','jovu','kaya','kevi','loko','mari','masu','navu','puja','raas','rite','ruso','thay','toon','vato','janu','joya','kajo','karo','lakh','laav','lage','maja','mast','moti','motu','naam','phal','pote','pray','rato','shak','sukh','vadh','vish','ajab','amne','biji','etle','javu','lovu','rath','sath','seva','shri','vari','vaid','vhal','bhir','dhan','divs','evan','halt','jova','kone','mane','nava','path','same','sane','soni','tale','varg','agad','ekta','faje','feni','gidh','javi','koni','loha','mate','mine','mota','nahi','nath','vayu','maate','shako','bhale','ghana','ramat','thase','koine','sharu','badhu','bhaji','bolvu','dabbo','dheku','jamva','kadhi','karvu','kashu','ketlu','kharu','laadu','mathi','methi','mithu','nathi','phodi','pishi','saaru','Shano','swaad','upmaa','vagar','vandu','vilay','aamka','aapvu','aathu','aavso','janya','kahvu','lakhu','lahan','lapet','palav','pujar','puvar','ratri','vahen','badha','bagay','darni','divas','jaher','jarur','jyare','kadak','kahee','kevay','laher','nathu','rojnu','svadu','vagad','avtar','bhedu','botad','chana','desma','dikri','jagma','khena','nakko','nirav','pauna','pehlu','rashi','ratan','rotlo','sovak','vikas','amare','desni','faraj','halol','india','jaman','kamna','lasan','lokta','melaa','naram','palan','rasoi','ratva','sompu','vadhu','tamara','khabar','sharab','bakadu','kariye','naathi','paneer','pranam','vachan','varsad','abhaag','ishwar','karine','khichu','maarnu','nishan','rajkot','salaah','swaadu','tempik','vanday','vilamb','aadhik','aaviye','apnavu','asarvu','damani','dhvani','dhokla','nimitt','nirnay','oldage','padavo','pakshi','sarkar','wisdom','abhyas','agrahy','bhaili','bhurak','chodvu','dagmag','kutchh','mariyu','pragat','shriji','vichar','akhand','bagdum','dhokra','divase','jagran','sanket','shakha','soorna','trance','vishay','bharela','chokari','dhandho','khandvi','khichdi','pragati','vadhare','vargani','vartavo','wartime','kharaab','kharedi','mysooru','navsari','shikhar','thaatha','vandana','vartman','vichaar','vitaran','vrushti','aayojit','ishware','mathama','pehchan','shaamak','vadhana','vartalo','village','adhunik','devgadh','hanuman','panchma','aradhya','baharva','itihaas','marvaad','mulakat','nishtha','sukhkar','vicharo','vikasak','bhakhari','dandvatu','nishaani','samajhvu','varshaam','aksharvo','khichadi','vicharan','dhandhal','suvichar','vartaman','villayat','avinashi','prayogik','varganim','bhavishya','ghamadhna','shyamahoo','ladakvaya','mazamaaze','vicharano','anandkand','parikrama','savaarish','sukhakari','salaamati','punyannand','icchapurti','punyabhumi','dhandhalya','nirikshana','prernapurna','khushamadee','punyabhoomi','shubharambh','randhikkaran'],
+    'Kannada': ['idu','adu','ene','illa','mele','eega','nivu','hege','beku','hosa','yenu','yava','ella','naanu','nimma','yaava','yaake','neenu','avaru','nimge','maadi','tumba','haage','enadu','yella','haagu','neeve','yaaru','namma','neevu','saaku','naavu','aagide','namage','ellide','ellavu','madhya','madhye','barutte','anisutte','maadiddiya'],
+    'Malayalam': ['ini','nee','oru','pal','kai','njan','illa','aara','avan','athu','enne','ende','ente','aaru','undu','aanu','avar','entha','enthu','aranu','venam','athil','koodi','ningal','thanne','ingane','kaanam','aarude','karuthi','sahayam','cheiythu','koduthal','cheyyuka','enthelum','kudumbam','prashnam','pattonnu','ningalude','arikkilla','irikkanam','santhosham','aayirikkanam','kandupidichu','samsarikkunnu','paranjirunnilla','cheiythirunnilla'],
+    'Punjabi': ['eta','ahe','eti','hai','pai','hei','att','cha','dil','fer','hun','jee','nhi','par','vai','bas','hoi','aan','nai','eho','hor','rab','deo','ice','ujj','tume','kaun','heba','kari','kahi','agge','assi','bhut','boli','ghar','haan','hass','hoya','jatt','kadd','khad','kujh','kuri','mann','menu','mera','meri','nahi','vali','vich','teri','wand','chaa','dass','daru','gedi','rabb','ankh','door','ishq','jeha','boot','hoye','paro','brar','dayi','kamb','patha','bhala','etiki','bhalo','balle','chaan','cheez','dhyan','ditta','fikar','gabru','haasa','kammi','kardi','khani','kinni','kitta','laggi','laina','lambi','mainu','majaa','mithi','vadde','saanu','thodi','turdi','janda','haigi','dassi','hunda','bulli','daaru','disdi','sajna','akhan','hoigi','kinna','paake','vekhi','bacha','billo','chete','chhad','hassi','lagge','maape','hunde','boldi','chhan','dekho','heavy','karan','lutti','paiye','vaari','bhabi','dasso','dukhi','gaana','kemiti','hauchi','hebaku','tumaku','parilu','aayaan','dekhdi','ghumdi','hassdi','khaana','luteya','nakhra','punjab','vekhna','tuhada','painde','changa','brinda','channa','mainnu','tuhanu','bhutta','changi','jeonde','kacche','khushi','aashiq','bhangra','charhda','chhutti','balliye','teriyan','punjabi','valiyan','vanjhali','vaddeyan','mutiyaran'],
+    'Odia': ['aau','ama','hei','jau','asi','hau','jiu','oka','aru','asa','odi','ori','naa','sei','aap','abe','aha','aja','ala','api','ari','aum','bapa','asti','boli','asta','ithi','pain','sabu','tame','tora','aaji','anna','bapu','bati','khia','loka','mane','jiba','mote','odia','thae','aama','hela','siba','nahi','suna','aaja','aala','aame','abhi','alag','alai','amar','anya','apye','atma','bhala','chhai','odhia','chali','poila','naahi','bhalo','sathi','thili','amaku','chhua','dusta','thata','amara','artha','asiba','jiban','aapna','achha','adugu','ahare','ajeya','alada','amate','anand','aneka','anila','arati','asana','chhata','jeeban','paithi','sasthi','bandha','lagila','asuchi','bhaaji','kanhei','rahilu','bhanga','hauchi','karibe','thatha','rauchi','aitare','alaita','alpana','amruta','ananta','ananya','anesha','aniket','animan','anyata','apiuna','apurna','aputra','arogya','asatya','asmita','asurya','avidya','dekhilu','karuchi','bihanga','dekhela','rakhiba','boluchi','chadhei','rahuchi','adbhuta','alaakhi','alahasa','alaukik','alokika','aniyata','anubhav','anusara','anupama','ashubha','asuddha','astitva','aumkara','avastha','avinita','avirati','avyakta','alaghana','alochana','aneshana','anindita','aniruddh','anyatara','apavarga','aradhana','atmatapa','aupasana','annapurna','jaukanthi','anukarana','anusarana','apaharana','aparajita','apasiddha','atmajnana','atmavidya','aupadhika','anantatapa','anekanetra','aneshapana','apasavadhi','asmitatapa','asuravrata','atmavritti','anantajnana','anilashakti','anupamaguni','atmanishtha','avasthapana','aviratatapa','avyaktatapa','animanishtha','apurnashakti','asmitavritti','aniruddhatapa','aviratavritti','avyaktavritti','anubhavashakti','aniruddhashakti','aniruddhavritti']
+}
+
+def Custom_language_detection(ytcomment):
+    """
+    Author: Jagadeesan Rajalakshmi Vellaichamy
+    Reviewer: Dani Papamaximou
+    Created At: 20/08/2023
+    Description: This function uses custom words from regional languages and find exact roman script of indian languages
+    :param ytcomment: data frame
+    :type ytcomment: dataframe
+    :return: dataframe
+    """
+    for language, words in words_to_check.items():
+        for word in words:
+            if word in ytcomment['comment_textDisplay']:
+                ytcomment['language'] = language
+                return ytcomment
+    return ytcomment
+###############################################################################################
+#Step17: Additional iteration in updating the language code of Indian regional languages based on step13
+#Languages list which are considered for analysis
+Language_lookup = {
+    'language': ['English', 'Hindi', 'Bengali', 'Telugu', 'Tamil', 'Marathi', 'Urdu', 'Gujarati', 'Kannada', 'Malayalam', 'Punjabi', 'Odia'],
+    'lang_code': ['en', 'hi', 'bn', 'te', 'ta', 'mr', 'ur', 'gu', 'kn', 'ml', 'pa', 'or']
+}
+Language_lookup = pd.DataFrame(Language_lookup)
+def Custom_language_code_mapping(ytcomment):
+    """
+    Author: Jagadeesan Rajalakshmi Vellaichamy
+    Reviewer: Dani Papamaximou
+    Created At: 20/08/2023
+    Description: This function updates the language code based on revised language
+    :param ytcomment: data frame
+    :type ytcomment: data frame
+    :return: data frame
+    """
+    language = ytcomment['language']
+    if language in Language_lookup['language'].tolist():
+        lang_code = Language_lookup[Language_lookup['language'] == language]['lang_code'].values[0]
+        ytcomment['language_code'] = lang_code
+    return ytcomment
+################################################################################################
+#Step18: Identify the Indian stop words and remove
+def IndicProfanityWordsRemover(Sourcedata):
+    """
+    Author: Jagadeesan Rajalakshmi Vellaichamy
+    Reviewer: Dani Papamaximou
+    Created At: 20/08/2023
+    Description: This function removes the stop words from comments
+    :param Sourcedata: The dataframe with Youtube comments in it
+    :type Sourcedata: data frame
+    :return: dataframe
+    """
+    custom_profanitywords = ['आंड़', 'आंड', 'आँड', 'बहनचोद', 'बेहेनचोद', 'भेनचोद', 'बकचोद', 'बकचोदी', 'बेवड़ा', 'बेवड़े', 'बेवकूफ', 'भड़ुआ', 'भड़वा', 'भोसड़ा', 'भोसड़ीके', 'भोसड़ीकी', 'भोसड़ीवाला', 'भोसड़ीवाले', 'बब्बे', 'बूबे', 'बुर', 'चरसी', 'चूचे',
+                             'चूची', 'चुची', 'चोद', 'चुदने', 'चुदवा', 'चुदवाने', 'चाट', 'चूत', 'चूतिया', 'चुटिया', 'चूतिये', 'दलाल', 'दलले', 'फट्टू', 'गधा', 'गधे', 'गधालंड', 'गांड', 'गांडू', 'गंडफट', 'गंडिया', 'गंडिये', 'गू', 'गोटे', 'हग', 'हग्गू', 'हगने', 'हरामी',
+                             'हरामजादा', 'हरामज़ादा', 'हरामजादे', 'हरामज़ादे', 'हरामखोर', 'झाट', 'झाटू', 'कुत्ता', 'कुत्ते', 'कुतिया', 'कुत्ती', 'लेंडी', 'लोड़े', 'लौड़े', 'लौड़ा', 'लोड़ा', 'लौडा', 'लिंग', 'लोडा', 'लोडे', 'लंड', 'लौंडा', 'लौंडे', 'लौंडी', 'लौंडिया', 'लुल्ली',
+                             'मार', 'मारो', 'मारूंगा', 'मादरचोद', 'मादरचूत', 'मादरचुत', 'मम्मे', 'मूत', 'मुत', 'मूतने', 'मुतने', 'मूठ', 'मुठ', 'नुननी', 'नुननु', 'पाजी', 'पेसाब', 'पेशाब', 'पिल्ला', 'पिल्ले', 'पिसाब',
+                             'haraamzyaada', 'haraamjaada', 'haraamjaade', 'haraamzaade', 'bhosdiwala', 'bhosdiwale', 'haramzyada', 'haraamkhor', 'madarchodd', 'madarchood', 'madarchoot', 'bahenchod', 'behenchod', 'bhenchodd',
+                             'bhonsdike', 'chudwaane', 'gadhalund', 'haramjada', 'haramkhor', 'madarchod', 'madarchut', 'porkistan', 'bhenchod', 'bakchodd', 'bakchodi', 'bevakoof', 'bewakoof', 'bhosdike', 'bhosdiki', 'chudwane',
+                             'laundiya', 'loundiya', 'bakchod', 'bevkoof', 'bewkoof', 'bhaduaa', 'bhadvaa', 'bhadwaa', 'bhosada', 'bhosdaa', 'chooche', 'choochi', 'chudney', 'chudwaa', 'chutiya', 'chutiye', 'gandfat', 'gandfut',
+                             'gandiya', 'gandiye', 'kuttiya', 'laundey', 'marunga', 'peshaab', 'bevdey', 'bewday', 'bevkuf', 'bewkuf', 'bhadua', 'bhadva', 'bhadwa', 'bhosda', 'babbey', 'charsi', 'chuchi', 'chudne', 'chudwa', 'chutia',
+                             'dalaal', 'dalley', 'hagney', 'harami', 'jhaatu', 'kuttey', 'kutiya', 'laudey', 'launda', 'lounde', 'laundi', 'loundi', 'mammey', 'mootne', 'pesaab', 'peshab', 'pillay', 'pilley', 'pisaab', 'bevda', 'bewda',
+                             'babbe', 'bubey', 'buurr', 'chhod', 'chodd', 'chaat', 'choot', 'chute', 'dalal', 'dalle', 'fattu', 'gadha', 'gadhe', 'gaand', 'gandu', 'gotey', 'gotte', 'haggu', 'hagne', 'jhaat', 'jhatu', 'kutta', 'kutte',
+                             'kutia', 'kutti', 'landi', 'landy', 'laude', 'laura', 'lauda', 'lulli', 'mamme', 'mutne', 'mooth', 'nunni', 'nunnu', 'paaji', 'pesab', 'pilla', 'pille', 'pisab', 'pkmkb', 'raand', 'randi', 'randy', 'tatte', 'tatti', 'tatty',
+                             'otha', 'punda', 'poolu', 'koothi', 'thevudiya', 'thevdiya', 'oombu', 'oombhu', 'sunni', 'sappi', 'omala', 'thuma', 'baadu', 'lavada', 'muttal', 'thayoli', 'suthu', 'poda',
+                             'dengu', 'bosudi', 'modda', 'gudda', 'pooku', 'lanja', 'erugu', 'lafoot', 'nihar', 'sulli', 'sachinoda', 'vedhava', 'vattakai'
+                             'poore', 'maire', 'kunne', 'mairu', 'kunna', 'appikunna', 'beejam', 'chandi', 'dushtan', 'mandu', 'masa', 'mola','myir', 'myre', 'ookki', 'parii','pooru', 'theetam', 'thendi',
+                             'baand', 'batti', 'benne', 'betta', 'bidde', 'bidko', 'bitti', 'bitri', 'blade', 'bolsu', 'chela', 'chool', 'dabba', 'dengu', 'devru', 'diggu', 'dumki', 'gaala', 'gedde', 'goota', 'guggu', 'guldu', 'gundu', 'hadsu', 'hakki', 'hudgi',
+                             'jujbi', 'juttu', 'kaadu', 'kaage', 'kadar', 'kaddi', 'katte', 'kirik', 'kitgo', 'kokke', 'kolte', 'koole', 'kothi', 'kotta', 'kudmi', 'kuiey', 'lodde', 'loosu', 'mabbu', 'macha', 'machi', 'magne', 'maama', 'maamu', 'maava', 'malli', 'manga',
+                             'manne', 'maska', 'medam', 'minda', 'mollu', 'motte', 'nakra', 'nekku', 'othla', 'panta', 'pekra', 'peltu', 'pirki', 'porki', 'pungi', 'ragle', 'saaru', 'scope', 'suvar', 'tadku', 'tagdu', 'taklu', 'tigne', 'tikla', 'tiklu', 'tooku', 'tunne',
+                             'udees', 'aandal', 'achchu', 'adjust', 'bachha', 'batthi', 'bejaan', 'bombat', 'bomman', 'burdey', 'chamak', 'chatri', 'chatta', 'chilre', 'chindi', 'chingi', 'chinki', 'chippu', 'chombu', 'chumma', 'cracku', 'dagaar', 'damaar', 'dingri', 'draabe',
+                             'enamma', 'gaandu', 'gubaal', 'jakaas', 'kachgo', 'kajoor', 'kantri', 'karaab', 'kogile', 'kuroop', 'maanja', 'makkar', 'mangya', 'matash', 'meeter', 'mentlu', 'mindri', 'paakda', 'pantar', 'papplu', 'pigure', 'pinish', 'pyaade', 'sakkat', 'shaata',
+                             'shanta', 'suthgo', 'syaata', 'thupuk', 'tholdu', 'thordu', 'thullu', 'udaisu', 'adklasi', 'ammanni', 'baandli', 'bevarsi', 'bindaas', 'chamcha', 'chameli', 'chamman', 'chappar', 'chootya', 'dabaisu', 'darbesi', 'dichchi', 'ethakko', 'gaampar', 'gamaara',
+                             'guraisu', 'hanumya', 'jamaisu', 'kachchu', 'kalakar', 'kalchko', 'kharaab', 'lagaisu', 'machchu', 'muchchu', 'obiraya', 'pataisu', 'piklati', 'pulchar', 'randike', 'stepney', 'supaari', 'teertha', 'jaiannu', 'adumkoli', 'atkaisko', 'badetade', 'bendethu', 'bolimaga',
+                             'chinaali', 'chinalke', 'hebbettu', 'jhinchak', 'mundaisu', 'naamarda', 'narpetla', 'nigrbeda', 'ninnajji', 'petromax', 'saamaanu', 'turemane', 'choobidu', 'naamaidu', 'tikamaka', 'baddimaga', 'chitranna', 'edbidangi', 'fountainu', 'gaanchali', 'hodskonda', 'kittogiro',
+                             'ninnakkan', 'ninnamman', 'soolemaga', 'guldukhan', 'kambiensu', 'ladyrambo', 'namhudgru', 'sodabuddi', 'tikakobbu', 'dandapinda', 'khatarnaak'
+                             'लंड', 'लौडा', 'लवडा', 'आंड', 'गोटी', 'पुच्ची', 'भोसडा', 'चूत', 'फोदरी', 'फोदी', 'भोक', 'गांड', 'बोचा','झवणे','चोदणे', 'घालणे', 'टाकणे', 'मुतणे', 'उठणे', 'रांड', 'वेश्या', 'छिनाल', 'गांडू', 'चुतिया','चुतिये','मादरचोद','भिकारचोट','रांडेच्या',
+                             'achuda','bara','bhag', 'bhoda', 'chood', 'chudi', 'dhon', 'putki',
+                             'babhuchak', 'bhadvo', 'bhopa', 'bobla', 'bosrina', 'buckwass', 'budhalal','chod', 'chodhru', 'chodkanya', 'chodu', 'chutiya', 'fattu', 'gando', 'ghelchoydi','hopa', 'kutari', 'loda', 'luli', 'namuno', 'puti', 'pikina', 'raand', 'sandas',
+                             'banda', 'bedhei', 'biaa', 'bujula', 'chhodi', 'dana', 'kukura',
+                             'kuti', 'haramjada', 'maachaud','bhander', 'lund', 'doodi', 'phudee', 'rami', 'budh', 'gaandu', 'rundi',
+                             'دلّ', 'حرامی', 'مادر چود', 'چوتیا', 'پُھدو', 'كتی', 'رنڈی', 'جھلّے', 'جھاواں', 'harami', 'madarchod', 'zaleel', 'chutia', 'lora', 'phuddu', 'salaay', 'muthar','lanti', 'khinzir', 'nagora'
+                        ]
+    custom_profanitywordsset = set(custom_profanitywords)
+    Sourcedata['comment_textDisplay'] = Sourcedata['comment_textDisplay'].apply(lambda text: ' '.join([word for word in text.split() if word not in custom_profanitywordsset]))
+    return Sourcedata
+################################################################################################
+#Step19: Identify the English stop words and remove
+def EnglishProfanityWordsRemover(ytcomments):
+    """
+    Author: Jagadeesan Rajalakshmi Vellaichamy
+    Reviewer: Dani Papamaximou
+    Created At: 20/08/2023
+    Description: This function removes the stop words from comments
+    :param ytcomments: gets youtube comments to remove english profanity words
+    :type ytcomments: column
+    :return: str
+    """
+    CensoredComments = profanity.censor(ytcomments)
+    TreatedComments = CensoredComments.replace('*', ' ')
+    TreatedComments = ' '.join(TreatedComments.split())
+    return TreatedComments
+################################################################################################
+#Step20: Identify the English stop words and remove
+def YTCommentsStopWordsRemover(comments):
+    """
+    Author: Jagadeesan Rajalakshmi Vellaichamy
+    Reviewer: Dani Papamaximou
+    Created At: 20/08/2023
+    Description: This function removes the stop words from comments
+    :param comments: gets youtube comments to remove english profanity words
+    :type comments: column
+    :return: str
+    """
+    nltk.download('stopwords')
+    nltk.download('punkt')
+    nltk.download('wordnet')
+    Engstopwords = set(stopwords.words('english'))
+    Tokenizedwords = word_tokenize(comments)
+    filtered_words = [token1gram for token1gram in Tokenizedwords if token1gram.lower() not in Engstopwords]
+    filtered_words = ' '.join(filtered_words)
+    filtered_words = re.sub(r'\s+', ' ', filtered_words)
+    return filtered_words
+################################################################################################
+#Step21: Identify the English stop words and remove
+def IndicStopWordsRemover(Sourcedata):
+    """
+    Author: Jagadeesan Rajalakshmi Vellaichamy
+    Reviewer: Dani Papamaximou
+    Created At: 20/08/2023
+    Description: This function removes the stop words from comments
+    :param Sourcedata: The dataframe with Youtube comments in it
+    :type Sourcedata: data frame
+    :return: dataframe
+    """
+    IndiclanguageDF = {}
+    for Indiclang_code in Sourcedata['language_code'].unique():
+        Indiclang_df = Sourcedata[Sourcedata['language_code'] == Indiclang_code].copy()
+        IndiclanguageDF[Indiclang_code] = Indiclang_df
+
+    # Step 2: Define custom words list based on language codes
+    Indiccustom_words = {
+        'hi': ['pakistan','pak', 'isi', 'और','के','का','की','को','है','एक','में','से','हैं','कर','पर','हो','इस','था','कि','लिए','या','होता','कुछ','करने','वाले','करते','हुए','उनके','उनका','उनकी','करता','इसके','इसका','इसकी','जैसे','कुल','अगर','हम','हमारे','आप','आपके','अपने','अपना','अपनी','आज','कल','कभी','अब','तब','इतना','बहुत','क्योंकि','क्या','कितना','कैसे','जब','तक','जिसके','जिसका','जिसकी','जिसको','जैसा','जिनका','जिनकी','जिनको','जिन्होंने','वर्ग','समय','साथ','पूरा','फिर','उसका','उसकी','उसके','उनको','किसी','वह','वही','वहाँ','वहां','वाली','वाला','वालों','वालीयों','स्वयं','aur','ke','ka','kee','ko','hai','ek','mein','se','hain','kar','par','ho','is','tha','ki','lie','ya','hota','kuchh','karane','vaale','karate','hue','unake','unaka','unakee','karata','isake','isaka','isakee','jaise','kul','agar','ham','hamaare','aap','aapake','apane','apana','apanee','aaj','kal','kabhee','ab','tab','itana','bahut','kyonki','kya','kitana','kaise','jab','tak','jisake','jisaka','jisakee','jisako','jaisa','jinaka','jinakee','jinako','jinhonne','varg','samay','saath','poora','phir','usaka','usakee','usake','unako','kisee','vah','vahee','vahaan','vaalee','vaala','vaalon','vaaleeyon','svayan'],
+        'ta': ['மேலும்','அந்த','இது','அது','இந்த','அந்தக்','ஆனால்','இதன்','அதன்','என்று','இப்போது','இப்போதான்','பின்னர்','பின்','அதில்','இதில்','Melum','anta','itu','atu','inta','antak','itaṉ','ataṉ','eṉṟu','ippotu','ippotaṉ','piṉṉar'],
+        'bn': ['অতএব','অথচ','অথবা','অনুযায়ী','অনেক','অনেকে','অনেকেই','অন্তত','অবধি','অবশ্য','আগামী','আগে','আগেই','আছে','আজ','আবার','আমরা','আমাদের','আমার','আমি','আর','আরও','ই','ইত্যাদি','উত্তর','উপর','উপরে','উত্তরে','উনি','ও','ওই','ওর','ওরা','ওদের','ওহ','ওহে','কখনও','করতে','করবে','করবেন','করা','করাই','করায়','করি','করিতে','করিয়া','করে','করেই','করেছিলেন','করেছে','করেছেন','করেন','কাউকে','কাছ','কাছে','কাজ','কাজে','কারও','কিংবা','কিছু','কিছুই','কিন্তু','কী','কে','কেউ','কেখা','কেন','কোটি','কোন','কোনও','কোনো','ক্ষেত্রে','খুব','গিয়ে','গিয়েছে','গিয়েছেন','গুলি','গেছে','গেছেন','গোটা','চেয়ে','ছাড়া','ছাড়াও','ছিল','ছিলেন','জন','জনগণ','জন্য','জন্যওজে','জানা','ঠিক','তখন','তবু','তবে','তা',
+                        'তাই','তাও','তাকে','তাতে','তাদের','তার','তারপর','তারা','তারৈ','তাহলে','তাহা','তাহাতে','তাহাতেই','তিনি','তিনিও','তুমি','তুলে','তেমন','তো','তোমার','থাকবে','থাকবেন','থাকা','থাকায়','থাকে','থাকেন','থেকে','থেকেই','থেকেও','দিকে','দিতে','দিয়ে','দিয়েছে','দিয়েছেন','দিলেন','দু','দুটি','দুটো','দেওয়া','দেওয়ার','দেওয়ায়','দেখতে','দেখতেই','দেখা','দেখে','দেন','দেয়','দেয়া','দেয়ার','দেয়ায়','দেয়ে','দ্বারা','ধরা','ধরে','নতুন','নয়','না','নাই','নাকি','নাগাদ','নানা','নিজে','নিজেই','নিজেদের','নিজের','নিজেস্থ','নির্দিষ্ট','নেওয়া','নেওয়ার','নেওয়ায়','নয়','পক্ষে','পর','পরে','পরেই','পর্যন্ত','পাওয়া','পারে','পি','পেয়ে','পৌঁছে','প্রতি','প্রথম','প্রভৃতি','প্রাথমিক','প্রায়','প্রযন্ত','প্রায়োজন','প্রায়োজনে','প্রয়োজনীয়','প্রায়োজনীয়তা','প্রয়োজনীয়ভাবে','প্রায়োজনীয়মত','প্রায়োজনীয়৷','ফলে','ফিরে','ফের','বক্তব্য','বদলে',
+                        'বন','বরং','বলতে','বলতেই','বলা','বলে','বলেই','বসে','বহু','বা','বাদে','বার','বিএম','বিশেষ','বিষয়টি','বেশ','বেশি','ব্যবহার','ব্যাপারে','ভাবে','মতো','মতোই','মধ্যভাগে','মধ্যে','মধ্যেই','মধ্যেও','মনে','মাধ্যমে','মাত্র','মোট','মোটেই','যখন','যত','যতটুকু','যতেহে','যা','যাঁর','যাঁরা','যাওয়া','যাওয়ার','যাওয়ায়','যায়','যাকে','যাতে','যাদের','যান','যাবে','যায়','যার','যারা','যে','যেখানে','যেতে','যেন','যেমন','র','রকম','রয়েছে','রাখা','রেখে','শুধু','শুরু','সঙ্গে','সঙ্গেও','সমস্ত','সময়','সব','সবার','সহ','সহিত','সাধারণ','সাথে','সুতরাং','সে','সেই','সেখান','সেখানে','সেটা','সেটি','সেটিই','সেটিও','সেটিওও','সেটিকে'],
+        'te': ['అందు','అందుకు','అందున','అందులో','అందులోని','అంత','అంతకంటే','అంతకు','అంతలో','అంతలోని','అనంతర','అని','అనిపిస్తుంది','అను','అనుకుంటుంది','అనుకుంటూ','అనుమానం','అనుమానిస్తుంది','అనుమానిస్తున్నారు','అనుమానిస్తున్నాయి','అనుమానిస్తూ','అన్న','అన్ని','అప్పుడు','అప్పుడే','అయితే','అలా','అలాగే','అందు'],
+        'mr': ['अधिक', 'अनेक', 'अशी', 'असलयाचे', 'असलेल्या', 'असा', 'असून', 'असे', 'आज', 'आणि', 'आता', 'आपल्या', 'आला', 'आली', 'आले', 'आहे', 'आहेत', 'एक', 'एका', 'कमी', 'करणयात', 'करून', 'का', 'काम', 'काय', 'काही', 'किवा', 'की', 'केला', 'केली', 'केले', 'कोटी', 'गेल्या', 'घेऊन', 'जात', 'झाला', 'झाली', 'झाले', 'झालेल्या', 'टा', 'डॉ', 'तर', 'तरी', 'तसेच', 'ता', 'ती', 'तीन', 'ते', 'तो', 'त्या', 'त्याचा', 'त्याची', 'त्याच्या', 'त्याना', 'त्यानी', 'त्यामुळे', 'त्री', 'दिली', 'दोन', 'न', 'नाही', 'निर्ण्य', 'पण', 'पम', 'परयतन', 'पाटील', 'म', 'मात्र', 'माहिती', 'मी', 'मुबी', 'म्हणजे', 'म्हणाले', 'म्हणून', 'या', 'याचा', 'याची', 'याच्या', 'याना', 'यानी', 'येणार', 'येत', 'येथील', 'येथे', 'लाख', 'व', 'व्यकत', 'सर्व', 'सागित्ले', 'सुरू', 'हजार', 'हा', 'ही', 'हे', 'होणार', 'होत', 'होता', 'होती', 'होते'],
+        'gu': ['અંત', 'અને', 'અબજ', 'અમે', 'અરે', 'અલગ', 'અસર', 'આગળ', 'આજે', 'આપે', 'આપો', 'આવા', 'આવે', 'આવો', 'ઇડી', 'ઉપર', 'એઆર', 'એએફ', 'એઓઓ', 'એમન', 'ઓછા', 'કંઈ', 'કદર', 'કમન', 'કયુ', 'કરી', 'કરે', 'કરો', 'કહે', 'કહો', 'કામ', 'કીઓ', 'કુલ', 'કેન', 'કેમ', 'કેસ', 'કોઈ', 'કોણ', 'કોન', 'કોમ', 'ખાણ', 'ખાસ', 'ખૂબ', 'ગમે', 'ગયા', 'ગયો', 'ગોળ', 'ઘણા', 'ઘણી', 'ચાર', 'ચાલ', 'છું', 'જમા', 'જાઓ', 'જાય', 'જીઇ', 'જીન', 'જીસ', 'જુએ', 'જુઓ', 'જૂથ', 'જેમ', 'જોઈ', 'ટીપ', 'ટેવ', 'ટોચ', 'ઠીક', 'ડોન', 'તમે', 'તરત', 'તરફ', 'તું', 'તેઓ', 'તેમ', 'તેર', 'થાય', 'દૂર', 'ધૂન', 'નકલ', 'નથી', 'નરક', 'નવી', 'નામ', 'પછી', 'પીઈ', 'પીઠ', 'ફરી', 'ફાઈ', 'ફિફ', 'બંધ', 'બધા', 'બની', 'બને', 'બાર', 'બિન', 'બિલ', 'બેઉ', 'ભરો', 'ભાગ', 'ભેટ', 'મદદ',
+                        'મને', 'મફત', 'મળી', 'મળે', 'માં', 'માફ', 'માલ', 'મિલ', 'મીન', 'યીહ', 'રકમ', 'રહી', 'રેફ', 'લાલ', 'વગર', 'વધુ', 'વલણ', 'વહુ', 'વળે', 'વળો', 'વીસ', 'વેબ', 'શરૂ', 'શું', 'શેડ', 'શેલ', 'શોધ', 'સદા', 'સાગ', 'સાઠ', 'સાત', 'સ્વ', 'હજુ', 'હતા', 'હતી', 'હવે', 'હશે', 'હાય', 'હું', 'હુઈ', 'હેડ', 'હોઈ', 'હોત', 'તેથી', 'અંદર', 'અગાઉ', 'અડધા', 'અથવા', 'અન્ય', 'અમને', 'અર્થ', 'અવસા', 'અહીં', 'આઈડી', 'આપણો', 'આપેલ', 'આભાર', 'ઉચ્ચ', 'એંસી', 'એકદમ', 'એકલા', 'એટલે', 'એનસી', 'એફએફ', 'એમકે', 'એમપી', 'એમવી', 'એમસી', 'એલવી', 'ઓછું', 'ઓરડો', 'કંઈક', 'કદાચ', 'કરશે', 'કલાક', 'કાયમ', 'કારણ', 'કૃપા', 'કેવી', 'કોઈક', 'કોરે', 'ખાલી', 'ખુલે', 'ગર્વ', 'ઘણું', 'ચાલુ', 'ચાલો', 'ચૂકી', 'છતાં', 'જરૂર', 'જવું', 'જાડા', 'જાણે', 'જાણો', 'જાતે', 'જીઆઈ', 'જીવો', 'જૂથો',
+                        'જૂની', 'જોઈએ', 'જોકે', 'ટીટી', 'ટીડી', 'ટીપી', 'ટીવી', 'ટીસી', 'ટેકો', 'ટ્વિ', 'ડાઉન', 'તેણી', 'તેના', 'તેને', 'તેવી', 'ત્રણ', 'થોડા', 'થ્રુ', 'દરેક', 'દ્વિ', 'નંબર', 'નજીક', 'નબળી', 'નવું', 'નહીં', 'નાના', 'નીચા', 'નીચે', 'નુકે', 'પંદર', 'પચાસ', 'પછાત', 'પાંચ', 'પાછળ', 'પાછા', 'પિતૃ', 'પીઆર', 'પીટી', 'પીપી', 'પૂછે', 'પૂરી', 'પેટા', 'પોકળ', 'પોતે', 'બંને', 'બદલે', 'બધું', 'બહાર', 'બાજુ', 'બાલા', 'બીઆર', 'બીજે', 'બીજો', 'બીટી', 'બીડી', 'બીબી', 'બીવી', 'ભાગો', 'મહાન', 'માટે', 'માણસ', 'માને', 'મારા', 'મારી', 'મિલી', 'મીમી', 'મૂકે', 'મૂકો', 'મોટા', 'મોટે', 'મ્યુ', 'રાખે', 'રિંગ', 'રુદન', 'રૂચિ', 'લગભગ', 'લગ્ન', 'લાઇન', 'લાગે', 'લીધો', 'લેતા', 'વર્ગ', 'વર્ષ', 'વિશે', 'વીજી', 'વીસી', 'શક્ય', 'શન્ટ', 'શાંત', 'શોધે', 'શોધો', 'શ્રી', 'સભ્ય', 'સમજુ', 'સમાન', 'સહેજ', 'સાઇટ', 'સાથે'],
+        'ml': ['അതിനാൽ','അവ','അവരുടെ','അവരെ','അവരെന്ന','അവര്','അവര്ക്ക്','അവരോട്'],
+        'kn': ['ಈ','ಆದರೆ','ಎಂದು','ಅವರ','ಮತ್ತು','ಎಂಬ','ಅವರು','ಒಂದು','ಬಗ್ಗೆ','ಆ','ಇದೆ','ಇದು','ನಾನು','ಮೂಲಕ','ನನ್ನ','ಅದು','ಮೇಲೆ','ಈಗ','ಹಾಗೂ','ಇಲ್ಲ','ಮೊದಲ','ನನಗೆ','ಹೆಚ್ಚು','ಅವರಿಗೆ','ತಮ್ಮ','ಮಾಡಿ','ನಮ್ಮ','ಮಾತ್ರ','ದೊಡ್ಡ','ಅದೇ','ಕೂಡ','ಸಿನಿಮಾ','ಯಾವುದೇ','ಯಾವ','ಆಗ','ತುಂಬಾ','ನಾವು','ದಿನ','ಬೇರೆ','ಅವರನ್ನು','ಎಲ್ಲಾ','ನೀವು','ಸಾಕಷ್ಟು','ಕನ್ನಡ','ಹೊಸ','ಮುಂದೆ','ಹೇಗೆ','ನಂತರ','ಇಲ್ಲಿ','ಕೆಲಸ','ಅಲ್ಲ','ಬಳಿಕ','ಒಳ್ಳೆಯ','ಹಾಗಾಗಿ','ಒಂದೇ','ಜನ','ಅದನ್ನು','ಬಂದ','ಕಾರಣ','ಅವಕಾಶ','ವರ್ಷ','ನಿಮ್ಮ','ಇತ್ತು','ಚಿತ್ರ','ಹೇಳಿ','ಮಾಡಿದ','ಅದಕ್ಕೆ','ಆಗಿ','ಎಂಬುದು','ಅಂತ','ಕೆಲವು','ಮೊದಲು','ಬಂದು','ಇದೇ','ನೋಡಿ','ಕೇವಲ','ಎರಡು','ಇನ್ನು','ಅಷ್ಟೇ','ಎಷ್ಟು','ಚಿತ್ರದ','ಮಾಡಬೇಕು','ಹೀಗೆ','ಕುರಿತು','ಉತ್ತರ','ಎಂದರೆ','ಇನ್ನೂ','ಮತ್ತೆ','ಏನು','ಪಾತ್ರ','ಮುಂದಿನ','ಸಂದರ್ಭದಲ್ಲಿ', 'ಮಾಡುವ','ವೇಳೆ','ನನ್ನನ್ನು','ಮೂರು','ಅಥವಾ','ಜೊತೆಗೆ','ಹೆಸರು','ಚಿತ್ರದಲ್ಲಿ'],
+        'pa': ['ਇਹ','ਉਸ','ਇੱਕ','ਹੈ','ਕਾ','ਕੀ','ਕੋ','ਅਤੇ','ਨੇ','ਕੀਤਾ','ਹੋਇਆ','ਸੀ','ਸੀ','ਥਾ','ਥੀ','ਸੰਗ','ਉਸਨੇ','ਇਸਦੇ','ਉਨਦੇ','ਸਭ','ਕੁਝ','ਕਿਸੇ','ਕਿੱਥੋਂ','ਕਿਵੇਂ','ਕਿਉਂ','ਕੋਈ','ਇਹਨਾਂ','ih','us','ik','hai','ka','ki','ko','ate','ne','kita','hoiya','si','si','tha','thi','sang','usne','isde','unde','sabh','kujh','kise','kithon','kiven','kiun','koi','ihnan'],
+        'ur': ['آئی','آئے','آج','آخر','آخرکبر','آدهی','آًب','آٹھ','آیب','اة','اخبزت','اختتبم','ادھر','ارد','اردگرد','ارکبى','اش','اضتعوبل','اضتعوبلات','اضطرذ','اضکب','اضکی','اضکے','اطراف','اغیب','افراد','الگ','اور','اوًچب','اوًچبئی','اوًچی','اوًچے','اى','اً','اًذر','اًہیں','اٹھبًب','اپٌب','اپٌے','اچھب','اچھی','اچھے','اکثر','اکٹھب','اکٹھی','اکٹھے','اکیلا','اکیلی','اکیلے','اگرچہ','اہن','ایطے','ایک','ب','ت','تبزٍ','تت','تر','ترتیت','تریي','تعذاد','تن','تو','توبم','توہی','توہیں','تٌہب','تک','تھب','تھوڑا','تھوڑی','تھوڑے','تھی','تھے','تیي','ثب','ثبئیں','ثبترتیت','ثبری','ثبرے','ثبعث','ثبلا','ثبلترتیت','ثبہر','ثدبئے','ثرآں','ثرش','ثعذ','ثغیر','ثلٌذ','ثلٌذوثبلا','ثلکہ','ثي','ثٌب','ثٌبرہب','ثٌبرہی','ثٌبرہے','ثٌبًب','ثٌذ','ثٌذکرو','ثٌذکرًب'
+                        ,'ثٌذی','ثڑا','ثڑوں','ثڑی','ثڑے','ثھر','ثھرا','ثھراہوا','ثھرپور','ثھی','ثہت','ثہتر','ثہتری','ثہتریي','ثیچ','ج','خب','خبرہب','خبرہی','خبرہے','خبهوظ','خبًب','خبًتب','خبًتی','خبًتے','خبًٌب','خت','ختن','خجکہ','خص','خططرذ','خلذی','خو','خواى','خوًہی','خوکہ','خٌبة','خگہ','خگہوں','خگہیں','خیطب','خیطبکہ','در','درخبت','درخہ','درخے','درزقیقت','درضت','دش','دفعہ','دلچطپ','دلچطپی','دلچطپیبں','دو','دور','دوراى','دوضرا','دوضروں','دوضری','دوضرے','دوًوں','دکھبئیں','دکھبتب','دکھبتی','دکھبتے','دکھبو','دکھبًب','دکھبیب','دی','دیب','دیتب','دیتی','دیتے','دیر','دیٌب','دیکھو','دیکھٌب','دیکھی','دیکھیں','دے','ر','راضتوں','راضتہ','راضتے','رریعہ','رریعے','رکي','رکھ','رکھب','رکھتب','رکھتبہوں','رکھتی','رکھتے','رکھی','رکھے','رہب','رہی','رہے','ز','زبصل']
+    }
+
+    # Step 3: Remove words present in each dataframe
+    for Indiclang_code, Indiclang_df in IndiclanguageDF.items():
+        if Indiclang_code in Indiccustom_words:
+            words_to_remove = Indiccustom_words[Indiclang_code]
+            for word in words_to_remove:
+                Indiclang_df['comment_textDisplay'] = Indiclang_df['comment_textDisplay'].str.replace(word, '')
+
+        # Step 4: Remove multiple consecutive blank spaces
+        Indiclang_df['comment_textDisplay'] = Indiclang_df['comment_textDisplay'].apply(lambda x: re.sub(r'\s+', ' ', x.strip()))
+
+    # Print languages being processed
+    for Indiclang_code in IndiclanguageDF.keys():
+        print(f"Processing Youtube comments in {Indiclang_code} language.")
+
+    # Step 5: Append dataframes and return the result
+    combinedDF = pd.concat(IndiclanguageDF.values(), ignore_index=True)
+
+    return combinedDF
+################################################################################################
+#Step22: Yoytube comments data collected is doesnt have sentiment label or score in it.
 #To find the sentiment of the comments, we are using unsupervised approach using mBERT multilingual pretrained base model which consider uncased/not case sensitive
 #If the source data already had these labels, we could move on to model build and prediction directly
 def Compute_polarity_score_mBERT(sourcedata, columnname, langColumn):
@@ -608,7 +647,8 @@ def Compute_polarity_score_mBERT(sourcedata, columnname, langColumn):
 
     for language_code in distinct_langcodes:
         if language_code in model_lang_tokenizer_map:
-            print(f"Language code {language_code} ")
+            print(f"Language code {language_code}")
+            print(f"The time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             model_name = model_lang_tokenizer_map[language_code]
             tokenizer = BertTokenizer.from_pretrained(model_name)
             model = BertForSequenceClassification.from_pretrained(model_name, num_labels=3)
@@ -619,7 +659,7 @@ def Compute_polarity_score_mBERT(sourcedata, columnname, langColumn):
             print(f"NLP mBERT model not found for language: {language_code}")
     return polarity_scored_df
 ################################################################################################
-#Step21: Based on polarity score compute the sentiment by finding max of all 3 classes
+#Step23: Based on polarity score compute the sentiment by finding max of all 3 classes
 def compute_sentiments(scorerecord):
     """
     Author: Jagadeesan Rajalakshmi Vellaichamy
@@ -637,7 +677,7 @@ def compute_sentiments(scorerecord):
     else:
         return "Neutral"
 ################################################################################################
-#Step22: Train NLP Multilingual mBERT by looping languages for each iteration
+#Step24: Train NLP Multilingual mBERT by looping languages for each iteration
 #Note: 11 Languages are considered for this model development
 #BASE MODEL - WITH ONLY DEFAULTS AND NO OPTIMIZER OR FINETUNING PARAMETERS USED. IT IS PURELY FOR BENCHMARKING
 def NLP_BASEMODEL_LANGUAGES_mBERT(sourcedata, batch_size, num_epochs, num_classes):
@@ -724,8 +764,8 @@ def NLP_BASEMODEL_LANGUAGES_mBERT(sourcedata, batch_size, num_epochs, num_classe
 
         #Training for languages loop
         for epoch in range(num_epochs):
-            print("#")
             print(f"Language code {language_code}: Epoch {epoch + 1}/{num_epochs} is running...")
+            print(f"The time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             model.train()
             train_loss = 0.0
             for batch in tqdm(train_dataloader, desc=f"Epoch {epoch + 1}/{num_epochs}"):
@@ -767,7 +807,7 @@ def NLP_BASEMODEL_LANGUAGES_mBERT(sourcedata, batch_size, num_epochs, num_classe
     return baseModel_Eval_metrics
 
 ################################################################################################
-#Step23: Train NLP Multilingual mBERT by looping languages for each iteration
+#Step25: Train NLP Multilingual mBERT by looping languages for each iteration
 #Note: 11 Languages are considered for this model development and validation
 #FINETUNED MODEL - WITH OPTIMIZER AND FINETUNING PARAMETERS USED.
 def NLP_FINETUNEDMODEL_LANGUAGES_mBERT(sourcedata, batch_size, num_epochs, num_classes, learning_rate):
@@ -858,8 +898,8 @@ def NLP_FINETUNEDMODEL_LANGUAGES_mBERT(sourcedata, batch_size, num_epochs, num_c
 
         #Training for loop
         for epoch in range(num_epochs):
-            print("#")
             print(f"Language code {language_code}: Epoch {epoch + 1}/{num_epochs} is running...")
+            print(f"The time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             model.train()
             train_loss = 0.0
             for batch in tqdm(train_dataloader, desc=f"Epoch {epoch + 1}/{num_epochs}"):
@@ -904,9 +944,8 @@ def NLP_FINETUNEDMODEL_LANGUAGES_mBERT(sourcedata, batch_size, num_epochs, num_c
 
     FinetunedModel_Eval_metrics = pd.DataFrame(metrics_dict)
     return FinetunedModel_Eval_metrics
-
 ################################################################################################
-
+#Step26: Summary table to justify max_length = 128 in model build
 def YTcount_words(Ytcomments):
     """
     Author: Jagadeesan Rajalakshmi Vellaichamy
@@ -919,49 +958,88 @@ def YTcount_words(Ytcomments):
     """
     commentstoken = Ytcomments.split()
     return len(commentstoken)
-
+################################################################################################
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     print(f"The Program run start time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    #Paramters Set
+    ReadFilepath = "C:\\Dissertation_2023\\youtube_comments\\"
+    WriteFilepath = "C:\\Dissertation_2023\\"
     start_date = '2019-01-01'
     end_date = '2019-04-10'
-    # data = pd.read_csv("C:\\Dissertation_2023\\youtube_comments\\youtube_apidata_47.csv", sep=',')
-    data = FileReadFromDirectory("C:\\Dissertation_2023\\youtube_comments\\", "youtube_apidata_*.csv")
+
+    #Read the Youtube comments files
+    data = FileReadFromDirectory(ReadFilepath, "youtube_apidata_*.csv")
     data = data.drop('comment_authorDisplayName', axis=1) #Dropping column since user related info present
-    print(f"The Youtube comments raw data row and column counts are: {data.shape[0]}, {data.shape[1]}")
+    print(f"Stage-1: The Data Collection Completed - dataframe row and column counts are: {data.shape[0]}, {data.shape[1]}, Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
     data = AnalysisWindowTimePeriodFilter(data, start_date, end_date, "ytvideo_publishedAt")
-    print(f"The Youtube comments after Jan-apr date filter row and column counts are: {data.shape[0]}, {data.shape[1]}")
+    print(f"The Youtube comments after 01Jan-10apr date filter row and column counts are: {data.shape[0]}, {data.shape[1]}, Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
     data = SmileyConversiontoTexts(data, "comment_textDisplay")
     data['comment_textDisplay'] = data['comment_textDisplay'].apply(EmojiRemovalfromComments)
+    print(f"The smiley, emoji treatment data row and column counts are: {data.shape[0]}, {data.shape[1]}, Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
     data = Remove_NAs_Blanks(data, "comment_textDisplay")
     data = Punctuations_Removal(data, "comment_textDisplay")
     data = DuplicateCommentsRemoval(data, "comment_textDisplay")
-    data = Language_Identification(data, 'comment_textDisplay')
-    data = Unidentified_language_removal(data)
-    data = SinglegramComments_Removal(data, 'comment_textDisplay')
+    print(f"The NAs, punctuations, duplicates treatment data row and column counts are: {data.shape[0]}, {data.shape[1]}, Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    # data = SinglegramComments_Removal(data, 'comment_textDisplay')
     data = NumbersinComments_Removal(data, 'comment_textDisplay')
     data = RepeatwordsInCommentsRemoval(data, 'comment_textDisplay')
-    print(f"The preprocessing completion time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"The Numerals, repeatwords treatment data row and column counts are: {data.shape[0]}, {data.shape[1]}, Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    data = CreateFlagsbyLabelingParty(data)
+    data = RemoveCommentswithallFlags0(data)  # Removing comments which has flag values bjp=0 and ing=0
+    data = BlankCommentsRemoval(data, 'comment_textDisplay')
+    # data = SinglegramComments_Removal(data, 'comment_textDisplay')
+    print(f"The party tagging, no party related comments removal data row and column counts are: {data.shape[0]}, {data.shape[1]}, Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    data = Language_Identification(data, 'comment_textDisplay')
+    data = Unidentified_language_removal(data)
+    print(f"The languages detection data row and column counts are: {data.shape[0]}, {data.shape[1]}, Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
     data_eng = data[data['language_code'] == 'en']
     data_eng = English_comments_to_lower(data_eng, 'comment_textDisplay')
     data_eng = data_eng.apply(Custom_language_detection, axis=1)
     data_eng = data_eng.apply(Custom_language_code_mapping, axis=1)
-    data_eng = Stopwords_Profanity_detection_removal(data_eng)
     data_noneng = data[data['language_code'] != 'en']
-    data_noneng = Stopwords_Profanity_detection_removal(data_noneng)
     final = pd.concat([data_eng, data_noneng], ignore_index=True)
-    final = CreateFlagsbyLabelingParty(final)
-    final = RemoveCommentswithallFlags0(final)  # Removing comments which has flag values bjp=0 and ing=0
+    del data_eng, data_noneng
+    final.to_csv(WriteFilepath + "Comments_NoPROF_STOP.csv", index=False)
+    print(f"The languages Custom detection data row and column counts are: {final.shape[0]}, {final.shape[1]}, Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    final = IndicProfanityWordsRemover(final)
+    final['comment_textDisplay'] = final['comment_textDisplay'].apply(EnglishProfanityWordsRemover)
     final = BlankCommentsRemoval(final, 'comment_textDisplay')
-    print(f"The Youtube comments cleansed data row and column counts are: {final.shape[0]}, {final.shape[1]}")
+    final.to_csv(WriteFilepath + "CommentsPROF_NoSTOP.csv", index=False)
+    print(f"The Profanity Removal data row and column counts are: {final.shape[0]}, {final.shape[1]}, Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    #Stopwords removal in Indic Languages is computation Intensive
+    final['comment_textDisplay'] = final['comment_textDisplay'].apply(YTCommentsStopWordsRemover) #English
+    print(f"Stage-2: Data Preprocessing Completed, dataframe row and column counts are: {final.shape[0]}, {final.shape[1]}, Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    data_Eng = final[final['language_code'] == 'en']
+    data_NoEng = final[final['language_code'] != 'en']
+    data_NoEng = IndicStopWordsRemover(data_NoEng)
+    final = pd.concat([data_Eng, data_NoEng], ignore_index=True)
+    final = BlankCommentsRemoval(final, 'comment_textDisplay')
+    final.to_csv(WriteFilepath + "CommentsPROFSTOP.csv", index=False)
+    print(f"Stopwords removed dataframe row and column counts are: {final.shape[0]}, {final.shape[1]}, Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    # Summary table on word count to set model max_length value
     final['YTword_count'] = final['comment_textDisplay'].apply(YTcount_words) #checking number of words present per youtube comment and taking summary
     summary_table = final.groupby('YTword_count').size().reset_index(name='Frequency')
     print(summary_table.head(50), summary_table.tail(50))
+
     final = Compute_polarity_score_mBERT(final, "comment_textDisplay", "language_code")
     final["mBert_sentiment"] = final.apply(compute_sentiments, axis=1)
-    print(f"The labeling sentiment - polarity completion time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    final.to_csv("C:\\Dissertation_2023\\Youtube_Clean_dataframe.csv", index=False)
+
+    print(f"Dataframe row and column counts are: {final.shape[0]}, {final.shape[1]}, Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    final.to_csv(WriteFilepath + "Youtube_Clean_dataframe.csv", index=False)
+    print(f"The unsupervised labeling sentiment - polarity scoring completion time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     print(f"The BASE MODEL Build start time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     mBERTbaseModel_metrics = NLP_BASEMODEL_LANGUAGES_mBERT(final, 2, 1, 3)
@@ -972,6 +1050,7 @@ if __name__ == '__main__':
     print(f"The FINETUNED MODEL Build completed time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     mbert_lang_eva_metrics = pd.concat([mBERTbaseModel_metrics, mBERTFitModel_metrics], ignore_index=True)
-    mbert_lang_eva_metrics.to_csv("C:\\Dissertation_2023\\NLP_mBERT_Metrics.csv", index=False)
+    mbert_lang_eva_metrics.to_csv(WriteFilepath + "NLP_mBERT_Metrics.csv", index=False)
     print(f"The Program run end time is: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("The Sentiment analysis prediction model run completed")
+################################################################################################
