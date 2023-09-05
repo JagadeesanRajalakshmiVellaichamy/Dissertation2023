@@ -29,25 +29,25 @@ st.set_page_config(layout="wide")
 st.title('Indian General Election 2019 Youtube Sentiment Dashboard')
 
 #Step3: Read the file from
-comments = 'https://raw.githubusercontent.com/JagadeesanRajalakshmiVellaichamy/Dissertation2023/blob/main/data/Youtube_Clean_dataframe.csv'
-df = pd.read_csv(comments)
+# comments = 'https://raw.githubusercontent.com/JagadeesanRajalakshmiVellaichamy/Dissertation2023/blob/main/data/Youtube_Clean_dataframe.csv'
+# df = pd.read_csv(comments)
 
-# username = 'JagadeesanRajalakshmiVellaichamy'
-# repo_name = 'Dissertation2023'
-# file_path = 'main/data/Youtube_Clean_dataframe.csv'
-# token = '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'
+username = 'JagadeesanRajalakshmiVellaichamy'
+repo_name = 'Dissertation2023'
+file_path = 'main/data/Youtube_Clean_dataframe.csv'
+token = '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'
 
-# # Create a URL for the raw content of the file
-# raw_url = f'https://raw.githubusercontent.com/{username}/{repo_name}/main/{file_path}'
+# Create a URL for the raw content of the file
+raw_url = f'https://raw.githubusercontent.com/JagadeesanRajalakshmiVellaichamy/Dissertation2023/blob/main/data/Youtube_Clean_dataframe.csv'
 
-# # Set up headers with the personal access token for authentication
-# headers = {'Authorization': f'token {token}'}
+# Set up headers with the personal access token for authentication
+headers = {'Authorization': f'token {token}'}
 
-# # Make a GET request to fetch the CSV content
-# response = requests.get(raw_url, headers=headers)
+# Make a GET request to fetch the CSV content
+response = requests.get(raw_url, headers=headers)
 
-# df = pd.read_csv(io.StringIO(response.text))
-# st.write(df.head())
+df = pd.read_csv(io.StringIO(response.text))
+st.write(df.head())
 
 
 #Step4: Plotting the graphs for the dashboard (Analysis period from Jan to Apr 2019 is considered)
