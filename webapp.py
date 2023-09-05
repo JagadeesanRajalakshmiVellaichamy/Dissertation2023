@@ -46,13 +46,9 @@ headers = {'Authorization': f'token {token}'}
 # Make a GET request to fetch the CSV content
 response = requests.get(raw_url, headers=headers)
 
-if response.status_code == 200:
-    # Read the CSV content into a DataFrame
-    df = pd.read_csv(io.StringIO(response.text))
-    print(df)
-    st.write(df.head())
-else:
-    print(f"Error: {response.status_code} - Unable to access the file.")
+df = pd.read_csv(io.StringIO(response.text))
+st.write(df.head())
+
 
 #Step4: Plotting the graphs for the dashboard (Analysis period from Jan to Apr 2019 is considered)
 #########################################----SECTION-1----#################################################
