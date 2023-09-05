@@ -26,8 +26,8 @@ st.set_page_config(layout="wide")
 st.title('Indian General Election 2019 Youtube Sentiment Dashboard')
 
 #Step3: Read the file from
-ReadFilepath = "D:\\0_SHU_31018584\\Data\\"
-df = pd.read_csv(ReadFilepath + "Youtube_Clean_dataframe.csv", sep=',')
+ReadFilepath = "https://github.com/JagadeesanRajalakshmiVellaichamy/Dissertation2023/blob/47acb1336414022c11f8bc43583c824a2f3da3ed/Youtube_Clean_dataframe.csv"
+df = pd.read_csv(ReadFilepath, sep=',')
 
 #Step4: Plotting the graphs for the dashboard (Analysis period from Jan to Apr 2019 is considered)
 #########################################----SECTION-1----#################################################
@@ -504,7 +504,8 @@ with right_column3:
 
 #########################################----SECTION-7----#################################################
 st.markdown("SECTION-6: mBert BASE VS FINE TUNED MODEL COMPARISON BY REGIONAL LANGUAGES")
-NLPmetrics = pd.read_csv(ReadFilepath + "NLP_mBERT_Metrics.csv", sep=',')
+ReadFilepath1 = "https://github.com/JagadeesanRajalakshmiVellaichamy/Dissertation2023/blob/47acb1336414022c11f8bc43583c824a2f3da3ed/NLP_mBERT_Metrics.csv"
+NLPmetrics = pd.read_csv(ReadFilepath1, sep=',')
 
 #CHART7.1: Displaying the Trained model metrics - BAR plots
 #filter1
