@@ -1,11 +1,4 @@
 streamlit~=1.25.0
 pandas~=2.0.3
-plost~=0.2.5
-protobuf
-altair
-click
 plotly~=5.15.0
 numpy~=1.25.2
-langdetect~=1.0.9
-googletrans~=3.0.0
-Pillow~=9.5.0
