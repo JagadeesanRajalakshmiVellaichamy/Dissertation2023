@@ -29,8 +29,29 @@ st.set_page_config(layout="wide")
 st.title('Indian General Election 2019 Youtube Sentiment Dashboard')
 
 #Step3: Read the file from
-comments = 'https://raw.githubusercontent.com/JagadeesanRajalakshmiVellaichamy/Dissertation2023/main/data/Youtube_Clean_dataframe.csv'
-df = pd.read_csv(comments)
+# comments = 'https://raw.githubusercontent.com/JagadeesanRajalakshmiVellaichamy/Dissertation2023/main/data/Youtube_Clean_dataframe.csv'
+# df = pd.read_csv(comments)
+
+username = 'JagadeesanRajalakshmiVellaichamy'
+repo_name = 'Dissertation2023'
+file_path = 'main/data/Youtube_Clean_dataframe.csv'
+token = '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'
+
+# Create a URL for the raw content of the file
+raw_url = f'https://raw.githubusercontent.com/{username}/{repo_name}/main/{file_path}'
+
+# Set up headers with the personal access token for authentication
+headers = {'Authorization': f'token {token}'}
+
+# Make a GET request to fetch the CSV content
+response = requests.get(raw_url, headers=headers)
+
+if response.status_code == 200:
+    # Read the CSV content into a DataFrame
+    df = pd.read_csv(io.StringIO(response.text))
+    print(df)
+else:
+    print(f"Error: {response.status_code} - Unable to access the file.")
 
 #Step4: Plotting the graphs for the dashboard (Analysis period from Jan to Apr 2019 is considered)
 #########################################----SECTION-1----#################################################
