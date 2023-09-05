@@ -11,6 +11,7 @@ Created At: 20/08/2023
 # pip install streamlit
 
 import streamlit as st
+import io
 import requests
 import pandas as pd
 import plotly.express as px
