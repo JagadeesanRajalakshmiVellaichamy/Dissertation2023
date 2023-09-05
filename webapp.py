@@ -30,7 +30,7 @@ st.title('Indian General Election 2019 Youtube Sentiment Dashboard')
 
 #Step3: Read the file from
 comments = requests.get('https://rawgit.com/JagadeesanRajalakshmiVellaichamy/Dissertation2023/main/Youtube_Clean_dataframe.csv').content
-df = pd.read_csv(comments)
+df = pd.read_csv(io.StringIO(comments.decode('utf-8')))
 st.write(df.head())
 #Step4: Plotting the graphs for the dashboard (Analysis period from Jan to Apr 2019 is considered)
 #########################################----SECTION-1----#################################################
