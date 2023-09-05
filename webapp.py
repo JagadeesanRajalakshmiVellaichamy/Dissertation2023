@@ -13,6 +13,7 @@ Created At: 20/08/2023
 import streamlit as st
 import io
 import requests
+from urllib.request import urlopen
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -28,8 +29,9 @@ st.set_page_config(layout="wide")
 st.title('Indian General Election 2019 Youtube Sentiment Dashboard')
 
 #Step3: Read the file from
-df = pd.read_csv('https://rawgit.com/JagadeesanRajalakshmiVellaichamy/Dissertation2023/main/Youtube_Clean_dataframe.csv')
-
+comments = 'https://rawgit.com/JagadeesanRajalakshmiVellaichamy/Dissertation2023/main/Youtube_Clean_dataframe.csv'
+df = pd.read_csv(comments)
+st.write(df.head())
 #Step4: Plotting the graphs for the dashboard (Analysis period from Jan to Apr 2019 is considered)
 #########################################----SECTION-1----#################################################
 #CHART-1.1: ANALYSIS PERIOD - OVERALL PERCENTAGE OF COMMENTS ABOUT BJP AND CONGRESS
