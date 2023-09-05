@@ -11,9 +11,6 @@ Created At: 20/08/2023
 # pip install streamlit
 
 import streamlit as st
-import io
-import requests
-from urllib.request import urlopen
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -29,26 +26,8 @@ st.set_page_config(layout="wide")
 st.title('Indian General Election 2019 Youtube Sentiment Dashboard')
 
 #Step3: Read the file from
-# comments = 'https://raw.githubusercontent.com/JagadeesanRajalakshmiVellaichamy/Dissertation2023/blob/main/data/Youtube_Clean_dataframe.csv'
-# df = pd.read_csv(comments)
-
-username = 'JagadeesanRajalakshmiVellaichamy'
-repo_name = 'Dissertation2023'
-file_path = 'main/data/Youtube_Clean_dataframe.csv'
-token = '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'
-
-# Create a URL for the raw content of the file
-raw_url = f'https://raw.githubusercontent.com/JagadeesanRajalakshmiVellaichamy/Dissertation2023/blob/main/data/Youtube_Clean_dataframe.csv'
-
-# Set up headers with the personal access token for authentication
-headers = {'Authorization': f'token {token}'}
-
-# Make a GET request to fetch the CSV content
-response = requests.get(raw_url, headers=headers)
-
-df = pd.read_csv(io.StringIO(response.text))
-st.write(df.head())
-
+ReadFilepath = "D:\\0_SHU_31018584\\Data\\"
+df = pd.read_csv(ReadFilepath + "Youtube_Clean_dataframe.csv", sep=',')
 
 #Step4: Plotting the graphs for the dashboard (Analysis period from Jan to Apr 2019 is considered)
 #########################################----SECTION-1----#################################################
@@ -525,7 +504,7 @@ with right_column3:
 
 #########################################----SECTION-7----#################################################
 st.markdown("SECTION-6: mBert BASE VS FINE TUNED MODEL COMPARISON BY REGIONAL LANGUAGES")
-NLPmetrics = pd.read_csv('https://rawgit.com/JagadeesanRajalakshmiVellaichamy/Dissertation2023/blob/main/data/NLP_mBERT_Metrics.csv')
+NLPmetrics = pd.read_csv(ReadFilepath + "NLP_mBERT_Metrics.csv", sep=',')
 
 #CHART7.1: Displaying the Trained model metrics - BAR plots
 #filter1
