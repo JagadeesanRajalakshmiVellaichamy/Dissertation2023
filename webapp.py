@@ -50,6 +50,7 @@ if response.status_code == 200:
     # Read the CSV content into a DataFrame
     df = pd.read_csv(io.StringIO(response.text))
     print(df)
+    st.write(df.head())
 else:
     print(f"Error: {response.status_code} - Unable to access the file.")
 
