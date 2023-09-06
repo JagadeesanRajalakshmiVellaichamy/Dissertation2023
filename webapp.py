@@ -36,19 +36,31 @@ bjp = df['bjp'].sum()
 ing = df['ing'].sum()
 result_df1 = pd.DataFrame({'Name': ['BJP'], 'Sum_Value': [bjp]})
 result_df2 = pd.DataFrame({'Name': ['CONGRESS'], 'Sum_Value': [ing]})
-df_pie = pd.concat([result_df1, result_df2], ignore_index=True)
-total_count = df_pie['Sum_Value'].sum()
-df_pie['Percentage'] = (df_pie['Sum_Value'] / total_count) * 100
+df_pie1 = pd.concat([result_df1, result_df2], ignore_index=True)
+total_count = df['comment_id'].count()
+df_pie1['Percentage'] = (df_pie1['Sum_Value'] / total_count) * 100
 
-color_mapping = {
-    'BJP': 'orange',
-    'CONGRESS': 'blue'
-}
-df_pie['Color'] = df_pie['Name'].map(color_mapping)
-
-PieChart1_1 = px.pie(df_pie, values='Percentage', names='Name', title='OVERALL DISTRIBUTION - YOUTUBE COMMENTS BY PARTY (01JAN2019 - 10APR2019)', labels={'Percentage': '%'}, color='Name', color_discrete_map=color_mapping)
-PieChart1_1.update_traces(textinfo='percent+label')
-PieChart1_1.update_layout(title_x=0.0,plot_bgcolor='white',paper_bgcolor='white',title_font_color='black',font=dict(color='black'),margin=dict(t=70, b=50, l=50, r=50))
+BarPlot1_1 = px.bar(df_pie1, x='Name', y='Percentage', color='Name', text='Percentage', barmode='group', color_discrete_sequence=['orange', 'blue'])
+BarPlot1_1.update_xaxes(type='category', categoryorder='category ascending', title='Parties')
+BarPlot1_1.update_yaxes(title='Comments percentage (%)', range=[0, 100])
+BarPlot1_1.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+BarPlot1_1.update_layout(
+title='OVERALL DISTRIBUTION - YOUTUBE COMMENTS BY PARTIES (01JAN2019 - 10APR2019)',
+# title_x=0.5,
+title_y=0.95,
+plot_bgcolor='white',
+paper_bgcolor='white',
+title_font_color='dark grey',
+xaxis=dict(showgrid=False),
+yaxis=dict(showgrid=False, tickformat=',d'),
+xaxis_title_font=dict(color='dark grey'),
+yaxis_title_font=dict(color='dark grey'),
+title_font=dict(color='dark grey'),
+font=dict(color='dark grey'),
+margin=dict(t=50, b=50, l=50, r=50),
+showlegend=True,
+legend=dict(bgcolor='white')
+)
 
 #CHART-1.2: ANALYSIS PERIOD - MONTHLY YOUTUBE COMMENTS DISTRIBUTION
 chartdata1 = df.groupby(['PublishMonth', 'PublishYear']).size().reset_index(name='Frequency')
@@ -87,7 +99,7 @@ yaxis2=dict(title='Number of comments by Party', overlaying='y', side='right', t
 #SECTION-1 DISPLAY CHARTS
 left_column1, right_column1 = st.columns([2, 2])
 with left_column1:
-    st.plotly_chart(PieChart1_1, use_container_width=True)
+    st.plotly_chart(BarPlot1_1, use_container_width=True)
 with right_column1:
     st.plotly_chart(BarPlot1_2, use_container_width=True)
 
