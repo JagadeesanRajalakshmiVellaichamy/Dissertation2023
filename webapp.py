@@ -34,13 +34,13 @@ df = pd.read_csv(ReadFilepath + "Youtube_Clean_dataframe.csv", sep=',')
 #CHART-1.1: ANALYSIS PERIOD - OVERALL PERCENTAGE OF COMMENTS ABOUT BJP AND CONGRESS
 bjp = df['bjp'].sum()
 ing = df['ing'].sum()
-result_df1 = pd.DataFrame({'Name': ['BJP'], 'Sum_Value': [bjp]})
-result_df2 = pd.DataFrame({'Name': ['CONGRESS'], 'Sum_Value': [ing]})
+result_df1 = pd.DataFrame({'Party': ['BJP'], 'Sum_Value': [bjp]})
+result_df2 = pd.DataFrame({'Party': ['CONGRESS'], 'Sum_Value': [ing]})
 df_pie1 = pd.concat([result_df1, result_df2], ignore_index=True)
 total_count = df['comment_id'].count()
 df_pie1['Percentage'] = (df_pie1['Sum_Value'] / total_count) * 100
 
-BarPlot1_1 = px.bar(df_pie1, x='Name', y='Percentage', color='Name', text='Percentage', barmode='group', color_discrete_sequence=['orange', 'blue'])
+BarPlot1_1 = px.bar(df_pie1, x='Party', y='Percentage', color='Party', text='Percentage', barmode='group', color_discrete_sequence=['orange', 'blue'])
 BarPlot1_1.update_xaxes(type='category', categoryorder='category ascending', title='Parties')
 BarPlot1_1.update_yaxes(title='Comments percentage (%)', range=[0, 100])
 BarPlot1_1.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
