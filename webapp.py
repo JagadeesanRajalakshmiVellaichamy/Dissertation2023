@@ -26,7 +26,7 @@ st.set_page_config(layout="wide")
 st.title('Indian General Election 2019 Youtube Sentiment Dashboard')
 
 #Step3: Read the file from
-ReadFilepath = "D:\\0_SHU_31018584\\Data\\"
+ReadFilepath = "C:\\Dissertation_2023\\"
 df = pd.read_csv(ReadFilepath + "Youtube_Clean_dataframe.csv", sep=',')
 
 #Step4: Plotting the graphs for the dashboard (Analysis period from Jan to Apr 2019 is considered)
@@ -61,6 +61,7 @@ margin=dict(t=50, b=50, l=50, r=50),
 showlegend=True,
 legend=dict(bgcolor='white')
 )
+
 
 #CHART-1.2: ANALYSIS PERIOD - MONTHLY YOUTUBE COMMENTS DISTRIBUTION
 chartdata1 = df.groupby(['PublishMonth', 'PublishYear']).size().reset_index(name='Frequency')
@@ -165,7 +166,7 @@ BarPlot2_2.update_xaxes(type='category', categoryorder='category ascending', tit
 BarPlot2_2.update_yaxes(title='Number of Likes & Replies')
 
 BarPlot2_2.update_layout(
-title='MONTHLY DISTRIBUTION OF YOUTUBE RATING VS LIKES PARTYWISE',
+title='MONTHLY DISTRIBUTION OF YOUTUBE LIKES VS REPLIES PARTYWISE',
 # title_x=0.5,
 title_y=0.95,
 plot_bgcolor='white',
@@ -312,29 +313,54 @@ BarPlot4_1.update_layout(
 legend=dict(orientation='v',x=1,y=1.1), yaxis2=dict(title='Number of comments by Party', overlaying='y', side='right'))
 
 #CHART-4.2: Overall distribution of Party comments for analysis
-bjp = filtered_df5['varb'].sum()
-ing = filtered_df5['vara'].sum()
-result_df1 = pd.DataFrame({'Name': ['BJP'], 'Sum_Value': [bjp]})
-result_df2 = pd.DataFrame({'Name': ['CONGRESS'], 'Sum_Value': [ing]})
-df_pie2 = pd.concat([result_df1, result_df2], ignore_index=True)
-total_count = df_pie2['Sum_Value'].sum()
-df_pie2['Percentage'] = (df_pie2['Sum_Value'] / total_count) * 100
+chartdata4_2 = df.groupby(['PublishMonthYear', 'PublishMonth', 'language']).size().reset_index(name='frequency')
+chartdata4_2 = chartdata4_2[chartdata4_2['language'].isin(selected_lang) & chartdata4_2['PublishMonthYear'].isin(selected_month)]
 
 color_mapping = {
-    'BJP': 'orange',
-    'CONGRESS': 'blue'
+    'Bengali': 'indianred',
+    'English': 'peru',
+    'Gujarati': 'gold',
+    'Hindi': 'yellowgreen',
+    'Kannada': 'forestgreen',
+    'Malayalam': 'turquoise',
+    'Marathi': 'teal',
+    'Odia': 'dodgerblue',
+    'Punjabi': 'slategrey',
+    'Tamil': 'mediumblue',
+    'Telugu': 'darkorchid',
+    'Urdu': 'crimson'
 }
-df_pie2['Color'] = df_pie2['Name'].map(color_mapping)
 
-PieChart4_2 = px.pie(df_pie2, values='Percentage', names='Name', title='PERCENTAGE DISTRIBUTION YOUTUBE COMMENTS LANGUAGES', labels={'Percentage': '%'}, color='Name', color_discrete_map=color_mapping)
-PieChart4_2.update_traces(textinfo='percent+label')
-PieChart4_2.update_layout(title_x=0.0,plot_bgcolor='white',paper_bgcolor='white',title_font_color='black',font=dict(color='black'),margin=dict(t=70, b=50, l=50, r=50))
+BarPlot4_2 = px.bar(chartdata4_2, x='PublishMonth', y='frequency', color='language', barmode='group', color_discrete_map=color_mapping)
+
+monname_map = {'1': 'Jan', '2': 'Feb', '3': 'Mar', '4': 'Apr', '5': 'May', '6': 'Jun', '7': 'Jul', '8': 'Aug', '9': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'}
+BarPlot4_2.update_xaxes(type='category', categoryorder='category ascending', title='Time Period (In Months)', tickvals=list(monname_map.keys()), ticktext=list(monname_map.values()))
+BarPlot4_2.update_yaxes(title='Number of Comments', range=[0, chartdata4_2['frequency'].max() + 1000])
+
+BarPlot4_2.update_layout(
+title='MONTHLY DISTRIBUTION OF YOUTUBE COMMENTS BY LANGUAGES',
+# title_x=0.5,
+title_y=0.95,
+plot_bgcolor='white',
+paper_bgcolor='white',
+title_font_color='dark grey',
+xaxis=dict(showgrid=False),
+yaxis=dict(showgrid=False, tickformat=',d'),
+xaxis_title_font=dict(color='dark grey'),
+yaxis_title_font=dict(color='dark grey'),
+title_font=dict(color='dark grey'),
+font=dict(color='dark grey'),
+margin=dict(t=50, b=50, l=50, r=50),
+showlegend=True,
+legend=dict(bgcolor='white')
+)
+
 
 left_column2, mid_column2 = st.columns(2)  # Adjust the widths as needed
 with left_column2:
     st.plotly_chart(BarPlot4_1, use_container_width=True)
 with mid_column2:
-    st.plotly_chart(PieChart4_2, use_container_width=True)
+    st.plotly_chart(BarPlot4_2, use_container_width=True)
 
 #########################################----SECTION-5----#################################################
 #CHART5.1: SENTIMENT DISTRIBUTION OF YOUTUBE COMMENTS BY PARTIES
