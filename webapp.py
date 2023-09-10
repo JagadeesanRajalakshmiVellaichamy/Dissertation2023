@@ -26,7 +26,7 @@ st.set_page_config(layout="wide")
 st.title('Indian General Election 2019 Youtube Sentiment Dashboard')
 
 #Step3: Read the file from
-ReadFilepath = "C:\\Dissertation_2023\\"
+ReadFilepath = "D:\\0_SHU_31018584\\Data\\"
 df = pd.read_csv(ReadFilepath + "Youtube_Clean_dataframe.csv", sep=',')
 
 #Step4: Plotting the graphs for the dashboard (Analysis period from Jan to Apr 2019 is considered)
@@ -67,7 +67,8 @@ legend=dict(bgcolor='white')
 chartdata1 = df.groupby(['PublishMonth', 'PublishYear']).size().reset_index(name='Frequency')
 chartdata1['vara'] = df.groupby(['PublishMonth', 'PublishYear'])['ing'].sum().values
 chartdata1['varb'] = df.groupby(['PublishMonth', 'PublishYear'])['bjp'].sum().values
-st.markdown("SECTION-1: TREND ANALYSIS OVERALL AND MONTHLY COMMENTS DISTRIBUTION")
+st.markdown("<h1 style='font-size: 15px; margin: 0; padding: 0;'>SECTION-1: TREND ANALYSIS OVERALL AND MONTHLY COMMENTS DISTRIBUTION</h1>", unsafe_allow_html=True)
+st.markdown("""""")
 selected_years = st.multiselect('Please select analysis time period (Year)', chartdata1['PublishYear'].unique())
 final_df = chartdata1[chartdata1['PublishYear'].isin(selected_years)]
 BarPlot1_2 = px.bar(final_df, x='PublishMonth', y='Frequency', barmode='group', color_discrete_sequence=['mediumaquamarine'])
@@ -103,7 +104,7 @@ with left_column1:
     st.plotly_chart(BarPlot1_1, use_container_width=True)
 with right_column1:
     st.plotly_chart(BarPlot1_2, use_container_width=True)
-
+st.markdown("<hr style='margin: 5px 0; padding: 0;'>", unsafe_allow_html=True)
 #########################################----SECTION-2----#################################################
 #CHART-2.1: TREND ANALYSIS - MONTHLY YOUTUBE VIDEOS VS CHANNELS
 plot2 = df.groupby(['PublishMonth', 'PublishYear'])['video_id'].nunique().reset_index(name='videos_count')
@@ -189,7 +190,7 @@ with left_column2:
     st.plotly_chart(BarPlot2_1, use_container_width=True)
 with right_column2:
     st.plotly_chart(BarPlot2_2, use_container_width=True)
-
+st.markdown("<hr style='margin: 5px 0; padding: 0;'>", unsafe_allow_html=True)
 #########################################----SECTION-3----#################################################
 #CHART-3.1: TREND ANALYSIS - WEEKLY DISTRIBUTION YOUTUBE COMMENTS
 chartdata3 = df.groupby(['PublishWeek']).size().reset_index(name='frequency')
@@ -197,7 +198,8 @@ chartdata3['vara'] = df.groupby(['PublishWeek'])['ing'].sum().values
 chartdata3['varb'] = df.groupby(['PublishWeek'])['bjp'].sum().values
 min_week = min(chartdata3['PublishWeek'])
 max_week = max(chartdata3['PublishWeek'])
-st.markdown('SECTION-2: TREND ANALYSIS - WEEKLY/HOURLY COMMENT DISTRIBUTION (01JAN2019 - 10APR2019)')
+st.markdown("<h1 style='font-size: 15px; margin: 0; padding: 0;'>SECTION-2: TREND ANALYSIS - WEEKLY/HOURLY COMMENT DISTRIBUTION (01JAN2019 - 10APR2019)</h1>", unsafe_allow_html=True)
+st.markdown("""""")
 start_week, end_week = st.slider("Please Select Week Range based on Analysis Window",min_value=min_week, max_value=max_week,value=(min_week, max_week))
 filtered_df3 = chartdata3[(chartdata3['PublishWeek'] >= start_week) & (chartdata3['PublishWeek'] <= end_week)]
 filtered_df3['PublishWeek'] = filtered_df3['PublishWeek'].astype(str).str.zfill(2)
@@ -269,13 +271,14 @@ with left_column3:
     st.plotly_chart(BarPlot3_1, use_container_width=True)
 with right_column3:
     st.plotly_chart(BarPlot3_2, use_container_width=True)
-
+st.markdown("<hr style='margin: 5px 0; padding: 0;'>", unsafe_allow_html=True)
 #########################################----SECTION-4----#################################################
 #CHART-4.1: YOUTUBE COMMENTS DISTRIBUTION BY LANGAUGES
 chartdata5 = df.groupby(['PublishMonthYear', 'language']).size().reset_index(name='frequency')
 chartdata5['vara'] = df.groupby(['PublishMonthYear', 'language'])['ing'].sum().values
 chartdata5['varb'] = df.groupby(['PublishMonthYear', 'language'])['bjp'].sum().values
-st.markdown("SECTION-3: TREND ANALYSIS LANGUAGE BASED YOUTUBE COMMENTS")
+st.markdown("<h1 style='font-size: 15px; margin: 0; padding: 0;'>SECTION-3: TREND ANALYSIS LANGUAGE BASED YOUTUBE COMMENTS</h1>", unsafe_allow_html=True)
+st.markdown("""""")
 #filter1
 selected_lang = st.multiselect('Please select languages from the list', chartdata5['language'].unique())
 #filter2
@@ -361,7 +364,7 @@ with left_column2:
     st.plotly_chart(BarPlot4_1, use_container_width=True)
 with mid_column2:
     st.plotly_chart(BarPlot4_2, use_container_width=True)
-
+st.markdown("<hr style='margin: 5px 0; padding: 0;'>", unsafe_allow_html=True)
 #########################################----SECTION-5----#################################################
 #CHART5.1: SENTIMENT DISTRIBUTION OF YOUTUBE COMMENTS BY PARTIES
 # BJP
@@ -382,8 +385,8 @@ tbresult_df2['Percentage'] = (tbresult_df2['count'] / tbtotal_count2) * 100
 TB_bar = pd.concat([tbresult_df1, tbresult_df2], ignore_index=True)
 TB_bar = TB_bar.sort_values(by='mBert_sentiment')
 
-st.markdown("SECTION-4: OVERALL SENTIMENTS BASED IN COMMENTS USING mBERT")
-
+st.markdown("<h1 style='font-size: 15px; margin: 0; padding: 0;'>SECTION-4: OVERALL SENTIMENTS BASED IN COMMENTS USING mBERT</h1>", unsafe_allow_html=True)
+st.markdown("""""")
 fig_TB = px.bar(TB_bar, x='mBert_sentiment', y='count', color='party', barmode='group', color_discrete_sequence=['orange', 'blue'])
 
 fig_TB.update_xaxes(type='category', categoryorder='category ascending', title='Sentiment Category')
@@ -445,10 +448,10 @@ with mid_column3:
     st.plotly_chart(fig_pietb1, use_container_width=True)
 with right_column3:
     st.plotly_chart(fig_pietb2, use_container_width=True)
-
+st.markdown("<hr style='margin: 5px 0; padding: 0;'>", unsafe_allow_html=True)
 #########################################----SECTION-6----#################################################
 #CHART6.1: Sentiments based on youtube comments using mBert
-st.markdown("SECTION-5: SENTIMENT DISTRUBUTION BASED IN TIME PERIOD AND LANGUAGES USING mBERT")
+st.markdown("<h1 style='font-size: 15px; margin: 0; padding: 0;'>SECTION-5: SENTIMENT DISTRUBUTION BASED IN TIME PERIOD AND LANGUAGES USING mBERT</h1>", unsafe_allow_html=True)
 st.markdown("Note: Neutral Sentiment is removed, focus is on Positive and Negative Sentiments")
 
 selected_timeperiod = st.multiselect("Select Analysis Timeperiod:", df['PublishMonthYear'].unique())
@@ -539,9 +542,11 @@ with mid_column3:
     st.plotly_chart(fig_pietb11, use_container_width=True)
 with right_column3:
     st.plotly_chart(fig_pietb21, use_container_width=True)
-
+st.markdown("<hr style='margin: 5px 0; padding: 0;'>", unsafe_allow_html=True)
 #########################################----SECTION-7----#################################################
-st.markdown("SECTION-6: mBert BASE VS FINE TUNED MODEL COMPARISON BY REGIONAL LANGUAGES")
+st.markdown("<h1 style='font-size: 15px; margin: 0; padding: 0;'>SECTION-6: mBert BASE VS FINE TUNED MODEL COMPARISON BY REGIONAL LANGUAGES</h1>", unsafe_allow_html=True)
+st.markdown("""""")
+
 NLPmetrics = pd.read_csv(ReadFilepath + "NLP_mBERT_Metrics.csv", sep=',')
 
 #CHART7.1: Displaying the Trained model metrics - BAR plots
@@ -579,6 +584,8 @@ with left_column8:
 with right_column8:
     st.plotly_chart(BarPlot7_4, use_container_width=True)
 
+st.markdown("<hr style='margin: 5px 0; padding: 0;'>", unsafe_allow_html=True)
+
 #CHART7.2: Displaying the Trained model metrics - TABULAR
 basemodeldf=NLPmetrics[NLPmetrics['ModelName'] == 'mBERT Base Model']
 basemodeldf=basemodeldf.drop('ModelName', axis=1)
@@ -600,5 +607,10 @@ Finetunedf = Finetunedf.rename(columns=fitmodelcolumn_suffixes)
 Final_metrics = pd.merge(basemodeldf, Finetunedf, on='LanguageCode', how='inner')
 Final_metrics['LanguageCode'] = Final_metrics['LanguageCode'].replace({'en': 'English', 'hi': 'Hindi','te': 'Telugu','ta': 'Tamil','ur': 'Urdu','mr': 'Marathi','bn': 'Bengali','or': 'Odia','gu': 'Gujarati','pa': 'Punjabi', 'kn': 'Kannada', 'ml': 'Malayalam'})
 Final_metrics_filtered = Final_metrics[Final_metrics['LanguageCode'].isin(IndianLang)]
-st.markdown("SECTION-7: mBert BASE VS FINE TUNED MODEL COMPARISON BY REGIONAL LANGUAGES TABULAR VIEW")
+Final_metrics_filtered = Final_metrics_filtered.set_index('LanguageCode', drop=True)
+st.markdown("<h1 style='font-size: 15px; margin: 0; padding: 0;'>SECTION-7: mBert BASE VS FINE TUNED MODEL COMPARISON BY REGIONAL LANGUAGES TABULAR VIEW</h1>", unsafe_allow_html=True)
+st.markdown("""""")
 st.write(Final_metrics_filtered)
+st.markdown("<hr style='margin: 5px 0; padding: 0;'>", unsafe_allow_html=True)
+st.markdown("<h1 style='font-size: 15px; margin: 0; padding: 0;'>End of Dashboard</h1>", unsafe_allow_html=True)
+st.markdown("<hr style='margin: 5px 0; padding: 0;'>", unsafe_allow_html=True)
